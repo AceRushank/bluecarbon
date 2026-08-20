@@ -53,24 +53,6 @@ python predictor.py
 
 ---
 
-## Using the Predictor in Your Own Code
-
-```python
-from predictor import predict_carbon
-
-carbon_tC_ha = predict_carbon({
-    "B2_blue":  0.045,
-    "B3_green": 0.068,
-    "B4_red":   0.052,
-    "B8_nir":   0.312,
-    "B11_swir": 0.098,
-    "NDVI":     0.714,
-})
-print(f"Estimated carbon stock: {carbon_tC_ha:.2f} tC/ha")
-```
-
----
-
 ## Features Used
 
 | Feature   | Sentinel-2 Band | Wavelength   | Role                              |
