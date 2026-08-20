@@ -1,0 +1,55 @@
+=================================================================
+  Blue Carbon MRV — EDA Summary (Worthington et al. 2024)
+=================================================================
+
+Source: Zenodo DOI 10.5281/zenodo.11283186
+AGB file : data\AGB_Carbon_Benefits_Data.csv  (3,983 units x 8 cols)
+SOC file : data\SOC_Benefits_Data.csv  (3,983 units x 7 cols)
+Merged   : 3,983 units x 23 cols  (join key: Type)
+
+-- Column Schema (AGB) ------------------------------------------
+  ['Type', 'AGB', 'Mean_AGB_Carbon_Secure', 'Low_AGB_Carbon_Secure', 'Hi_AGB_Carbon_Secure', 'Mean_AGB_Carbon_Restor', 'Low_AGB_Carbon_Restor', 'Hi_AGB_Carbon_Restor']
+
+-- Column Schema (SOC) ------------------------------------------
+  ['Type', 'Mean_SOC_Carbon_Secure', 'Low_SOC_Carbon_Secure', 'Hi_SOC_Carbon_Secure', 'Mean_SOC_Carbon_Restor', 'Low_SOC_Carbon_Restor', 'Hi_SOC_Carbon_Restor']
+
+-- Engineered Features ------------------------------------------
+  typology_class      : prefix of Type (Delta, Estuarine, etc.)
+  total_AGB_MgC       : Mean_AGB_Secure + Mean_AGB_Restor
+  total_SOC_MgC       : Mean_SOC_Secure + Mean_SOC_Restor
+  total_carbon_MgC    : total_AGB + total_SOC  [PRIMARY TARGET]
+  carbon_density      : total_carbon / AGB  (relative density)
+  restoration_efficiency: (AGB_Restor + SOC_Restor) / AGB
+  AGB_uncertainty     : Hi_AGB_Secure - Low_AGB_Secure
+  SOC_uncertainty     : Hi_SOC_Secure - Low_SOC_Secure
+
+-- Global Target Statistics (total_carbon_MgC) ------------------
+  Mean  :       47,470.38 MgC
+  Median:        4,103.43 MgC
+  Std   :      277,712.06 MgC
+  Min   :            0.00 MgC
+  Max   :    8,117,963.53 MgC
+
+-- Typology Class Breakdown -------------------------------------
+typology_class  n_units  mean_AGB_secure  mean_SOC_secure  mean_total_carbon  mean_restoration_efficiency
+         Delta       95     43255.665600    489536.599738      742512.424109                     0.524023
+       Estuary      938      2954.398405     28913.273016       41627.067652                     0.580870
+        Lagoon      626       957.844291     27742.432387       33745.819583                     0.875821
+     OpenCoast     2324      1546.872133     17468.761876       25113.931820                     0.682599
+
+-- India Reference (Country_Statistics.csv) ---------------------
+  Mangrove area 2020 : 4,035.91 km2  (Rank #10 globally)
+  Gross loss         : 418.07 km2
+  Restorable area    : 170.97 km2 (4.24%)
+  Restoration score  : 0.7172
+  AGB carbon (sec.)  : 216,381.12 MgC
+  AGB carbon (rest.) : 78,809.21 MgC
+  SOC carbon (sec.)  : 2,646,243.38 MgC
+  SOC carbon (rest.) : 304,318.07 MgC
+  Total carbon stock : 3,245,751.78 MgC
+
+  Indian mangrove zones covered by this dataset:
+  Sundarbans (West Bengal), Bhitarkanika (Odisha),
+  Coringa (Andhra Pradesh), Pichavaram (Tamil Nadu),
+  Gulf of Kutch (Gujarat), Andaman & Nicobar Islands
+=================================================================

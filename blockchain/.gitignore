@@ -1,0 +1,15 @@
+# ── Hardhat artifacts / cache ─────────────────────────────────────────────────
+artifacts/
+cache/
+coverage/
+coverage.json
+typechain-types/
+
+# ── Environment variables (NEVER commit) ─────────────────────────────────────
+.env
+
+# ── Node modules ─────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Generated deployment files ────────────────────────────────────────────────
+deployed_contracts.json

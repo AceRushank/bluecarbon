@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blue Carbon MRV Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151f32',
+                            900: '#0f172a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        #map { height: 380px; min-height: 380px; border-radius: 0.5rem; z-index: 10; }
+        .monospace { font-family: 'Courier New', Courier, monospace; }
+        
+        /* Custom scrollbar for dark mode */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+
+<div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row justify-between items-center bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg">
+        <div>
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
+                Blue Carbon MRV & Registry
+            </h1>
+            <p class="text-slate-400 mt-1">Satellite ML Inference & Blockchain Minting Prototype</p>
+        </div>
+        <div id="health-status" class="mt-4 md:mt-0 flex items-center space-x-2 text-sm font-medium px-4 py-2 rounded-full bg-slate-900 border border-slate-700">
+            <span class="flex h-3 w-3 relative">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <span id="health-text" class="text-slate-300">Connecting to Node...</span>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Map Panel -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg flex flex-col space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-semibold text-slate-100">Coastal Zone Selection</h2>
+            </div>
+            
+            <div id="map" class="w-full border border-slate-600"></div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <button onclick="flyToZone('BHIT', 20.7211, 86.8880)" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Bhitarkanika</button>
+                <button onclick="flyToZone('SUND', 21.9497, 89.1833)" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Sundarbans</button>
+                <button onclick="flyToZone('PICH', 11.4273, 79.7845)" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Pichavaram</button>
+                <button onclick="flyToZone('KUTCH', 22.4500, 70.0000)" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Gulf of Kutch</button>
+            </div>
+            <p class="text-xs text-slate-400 italic">Click anywhere on the map to set coordinates manually.</p>
+        </div>
+
+        <!-- ML & Minting Panel -->
+        <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg flex flex-col space-y-6">
+            
+            <!-- Step 1: Estimation -->
+            <div>
+                <h2 class="text-xl font-semibold text-slate-100 mb-4">1. STAC Ingestion & ML Inference</h2>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Site ID</label>
+                        <input type="text" id="est-site-id" value="BHIT-LIVE-01" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Area (Hectares)</label>
+                        <input type="number" id="est-area" value="100" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Latitude</label>
+                        <input type="number" step="any" id="est-lat" value="20.7211" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Longitude</label>
+                        <input type="number" step="any" id="est-lon" value="86.8880" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
+                    </div>
+                </div>
+                <button id="btn-estimate" onclick="runEstimate()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-4 rounded shadow transition-colors">
+                    Query STAC & Run ML Model
+                </button>
+
+                <!-- Estimate Results Box -->
+                <div id="estimate-result" class="hidden mt-4 bg-slate-900 border border-slate-700 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3 border-b border-slate-700 pb-2">
+                        <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase">Live ESA Sentinel-2 STAC Ingestion</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-y-2 text-sm text-slate-300 mb-4">
+                        <span class="text-slate-500">Scene ID:</span>
+                        <span id="res-scene" class="monospace text-right"></span>
+                        <span class="text-slate-500">Cloud Cover:</span>
+                        <span id="res-clouds" class="monospace text-right"></span>
+                        <span class="text-slate-500">Dynamic NDVI:</span>
+                        <span id="res-ndvi" class="monospace text-right font-semibold text-emerald-400"></span>
+                    </div>
+                    <div class="border-t border-slate-700 pt-3">
+                        <p class="text-xs font-bold text-blue-400 tracking-wider uppercase mb-2">Carbon Estimation Breakdown</p>
+                        <div class="grid grid-cols-2 gap-y-2 text-sm text-slate-300">
+                            <span class="text-slate-500">Total Density:</span>
+                            <span id="res-density" class="monospace text-right"></span>
+                            <span class="text-slate-500">Above-Ground (AGB):</span>
+                            <span id="res-agb" class="monospace text-right"></span>
+                            <span class="text-slate-500">Soil Organic (SOC):</span>
+                            <span id="res-soc" class="monospace text-right"></span>
+                        </div>
+                    </div>
+                    <div class="mt-4 p-3 bg-blue-900/30 border border-blue-800 rounded flex justify-between items-center">
+                        <span class="text-sm font-semibold text-blue-200">Total Mintable BCO2:</span>
+                        <span id="res-credits" class="text-xl font-bold text-blue-400">0</span>
+                    </div>
+                </div>
+                <div id="estimate-error" class="hidden mt-4 p-3 bg-red-900/30 border border-red-800 text-red-400 text-sm rounded"></div>
+            </div>
+
+            <hr class="border-slate-700">
+
+            <!-- Step 2: Minting -->
+            <div>
+                <h2 class="text-xl font-semibold text-slate-100 mb-4">2. Blockchain Verification & Minting</h2>
+                <div class="grid grid-cols-1 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Predicted Credits (tCO2e)</label>
+                        <input type="number" id="mint-credits" readonly placeholder="Run estimate first" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-400 cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Project Owner Wallet Address</label>
+                        <input type="text" id="mint-owner" value="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 monospace">
+                    </div>
+                </div>
+                <button id="btn-mint" onclick="verifyAndMint()" disabled class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium py-2 px-4 rounded shadow transition-colors">
+                    Sign & Broadcast TX
+                </button>
+
+                <!-- Mint Results Box -->
+                <div id="mint-result" class="hidden mt-4 bg-slate-900 border border-slate-700 rounded-lg p-4">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        <span class="text-sm font-bold text-emerald-400">Transaction Confirmed</span>
+                    </div>
+                    <div class="text-xs text-slate-400 space-y-1 mt-3 break-all">
+                        <p><span class="text-slate-500">TX Hash:</span> <span id="mint-tx" class="monospace text-slate-300"></span></p>
+                    </div>
+                </div>
+                <div id="mint-error" class="hidden mt-4 p-3 bg-red-900/30 border border-red-800 text-red-400 text-sm rounded"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registry Table -->
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg overflow-hidden">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold text-slate-100">Immutable Project Registry</h2>
+            <button onclick="loadRegistry()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-1.5 px-3 rounded border border-slate-600 transition-colors flex items-center">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                Refresh
+            </button>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-300 monospace">
+                <thead class="text-xs text-slate-400 uppercase bg-slate-900 border-b border-slate-700">
+                    <tr>
+                        <th scope="col" class="px-4 py-3">Site ID</th>
+                        <th scope="col" class="px-4 py-3">Owner</th>
+                        <th scope="col" class="px-4 py-3">Area (Ha)</th>
+                        <th scope="col" class="px-4 py-3">Carbon Stock (tCO2e)</th>
+                        <th scope="col" class="px-4 py-3 text-emerald-400">BCO2 Minted</th>
+                        <th scope="col" class="px-4 py-3">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="registry-body" class="divide-y divide-slate-700/50">
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">Loading on-chain data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = window.location.origin;
+
+    // --- LEAFLET MAP SETUP ---
+    const map = L.map('map').setView([18.5, 82.5], 5);
+    
+    // OpenStreetMap Base Layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
+
+    let currentMarker = L.marker([20.7211, 86.8880]).addTo(map);
+
+    function updateMarkerAndInputs(lat, lng) {
+        document.getElementById('est-lat').value = lat.toFixed(4);
+        document.getElementById('est-lon').value = lng.toFixed(4);
+        currentMarker.setLatLng([lat, lng]);
+    }
+
+    map.on('click', function(e) {
+        updateMarkerAndInputs(e.latlng.lat, e.latlng.lng);
+    });
+
+    function flyToZone(prefix, lat, lng) {
+        map.flyTo([lat, lng], 10, { duration: 1.5 });
+        updateMarkerAndInputs(lat, lng);
+        document.getElementById('est-site-id').value = `${prefix}-LIVE-${Math.floor(Math.random()*1000).toString().padStart(3,'0')}`;
+    }
+
+    // --- API LOGIC ---
+
+    // Health Check
+    fetch(`${API_BASE}/api/health`)
+        .then(res => res.json())
+        .then(data => {
+            const el = document.getElementById('health-text');
+            if (data.status === 'healthy') {
+                el.innerText = `Connected (Chain: ${data.chain_id})`;
+            } else {
+                el.innerText = `System Offline`;
+                el.parentElement.classList.replace('bg-emerald-500', 'bg-red-500');
+            }
+        }).catch(err => {
+            const el = document.getElementById('health-text');
+            el.innerText = `API Unreachable`;
+            el.parentElement.querySelector('.bg-emerald-500').classList.replace('bg-emerald-500', 'bg-red-500');
+            el.parentElement.querySelector('.animate-ping').classList.add('hidden');
+        });
+
+    let currentEstimate = null;
+
+    async function runEstimate() {
+        const btn = document.getElementById('btn-estimate');
+        const resBox = document.getElementById('estimate-result');
+        const errBox = document.getElementById('estimate-error');
+        
+        btn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Querying Satellite & Running ML Model...';
+        btn.disabled = true;
+        resBox.classList.add('hidden');
+        errBox.classList.add('hidden');
+        document.getElementById('btn-mint').disabled = true;
+
+        const payload = {
+            site_id: document.getElementById('est-site-id').value,
+            latitude: parseFloat(document.getElementById('est-lat').value),
+            longitude: parseFloat(document.getElementById('est-lon').value),
+            area_hectares: parseFloat(document.getElementById('est-area').value)
+        };
+
+        try {
+            const res = await fetch(`${API_BASE}/api/estimate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                currentEstimate = data;
+                
+                // Populate Results
+                document.getElementById('res-scene').innerText = data.satellite_meta?.scene_id || "N/A";
+                document.getElementById('res-clouds').innerText = `${data.satellite_meta?.cloud_cover_percent || 0}%`;
+                
+                const ndviValue = data.NDVI !== undefined ? data.NDVI : (data.satellite_meta?.NDVI !== undefined ? data.satellite_meta.NDVI : null);
+                document.getElementById('res-ndvi').innerText = ndviValue !== null ? ndviValue.toFixed(4) : "N/A";
+                
+                document.getElementById('res-density').innerText = `${Number(data.carbon_density_tC_ha).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} tC/ha`;
+                document.getElementById('res-agb').innerText = `${Number(data.aboveground_biomass_tC).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} tC`;
+                document.getElementById('res-soc').innerText = `${Number(data.soil_organic_carbon_tC).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} tC`;
+                
+                document.getElementById('res-credits').innerText = Number(data.predicted_credits).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                
+                // Populate Minting form
+                document.getElementById('mint-credits').value = data.predicted_credits;
+                document.getElementById('btn-mint').disabled = false;
+                
+                resBox.classList.remove('hidden');
+            } else {
+                errBox.innerText = `Error: ${data.detail || JSON.stringify(data)}`;
+                errBox.classList.remove('hidden');
+            }
+        } catch (e) {
+            errBox.innerText = `Network Error: ${e.message}`;
+            errBox.classList.remove('hidden');
+        } finally {
+            btn.innerHTML = "Query STAC & Run ML Model";
+            btn.disabled = false;
+        }
+    }
+
+    async function verifyAndMint() {
+        const btn = document.getElementById('btn-mint');
+        const resBox = document.getElementById('mint-result');
+        const errBox = document.getElementById('mint-error');
+        
+        btn.innerText = "Signing & Broadcasting TX...";
+        btn.disabled = true;
+        resBox.classList.add('hidden');
+        errBox.classList.add('hidden');
+
+        if (!currentEstimate) return;
+
+        const payload = {
+            site_id: currentEstimate.site_id,
+            latitude: document.getElementById('est-lat').value.toString(),
+            longitude: document.getElementById('est-lon').value.toString(),
+            area_hectares: parseFloat(document.getElementById('est-area').value),
+            predicted_credits: currentEstimate.predicted_credits,
+            owner_address: document.getElementById('mint-owner').value
+        };
+
+        try {
+            const res = await fetch(`${API_BASE}/api/verify-and-mint`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            
+            if (res.ok) {
+                document.getElementById('mint-tx').innerText = data.tx_hash;
+                resBox.classList.remove('hidden');
+                
+                // Fly to coordinate and pop-up
+                const lat = parseFloat(payload.latitude);
+                const lon = parseFloat(payload.longitude);
+                map.flyTo([lat, lon], 12);
+                L.popup().setLatLng([lat, lon])
+                 .setContent(`<div class="text-sm font-bold text-slate-800">Minted ${payload.predicted_credits.toLocaleString()} BCO2</div><div class="text-xs text-slate-600">${payload.site_id}</div>`)
+                 .openOn(map);
+
+                loadRegistry(); // auto refresh ledger
+            } else {
+                errBox.innerText = `Transaction Failed: ${data.detail || JSON.stringify(data)}`;
+                errBox.classList.remove('hidden');
+                btn.disabled = false;
+            }
+        } catch (e) {
+            errBox.innerText = `Network Error: ${e.message}`;
+            errBox.classList.remove('hidden');
+            btn.disabled = false;
+        } finally {
+            btn.innerText = "Sign & Broadcast TX";
+        }
+    }
+
+    async function loadRegistry() {
+        const tbody = document.getElementById('registry-body');
+        
+        try {
+            const res = await fetch(`${API_BASE}/api/registry/projects`);
+            const data = await res.json();
+            
+            if (data.projects && data.projects.length > 0) {
+                tbody.innerHTML = data.projects.reverse().map(p => `
+                    <tr class="hover:bg-slate-800/50 transition-colors">
+                        <td class="px-4 py-3 font-medium text-slate-200">${p.site_id}</td>
+                        <td class="px-4 py-3 text-slate-400" title="${p.owner}">${p.owner.substring(0,6)}...${p.owner.substring(38)}</td>
+                        <td class="px-4 py-3">${p.area_hectares}</td>
+                        <td class="px-4 py-3">${p.carbon_tons}</td>
+                        <td class="px-4 py-3 font-bold text-emerald-400">${Number(p.credits_minted).toLocaleString()}</td>
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${p.is_verified ? 'bg-emerald-900/30 text-emerald-400 border border-emerald-800' : 'bg-slate-700 text-slate-300'}">
+                                ${p.is_verified ? 'Verified' : 'Pending'}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-slate-500">No verified projects found.</td></tr>`;
+            }
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-500">Failed to load registry: ${e.message}</td></tr>`;
+        }
+    }
+
+    // Load registry on start
+    setTimeout(loadRegistry, 1000);
+</script>
+
+</body>
+</html>
