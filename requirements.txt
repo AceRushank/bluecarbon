@@ -10,3 +10,5 @@ web3
 python-dotenv
 pystac-client
 shapely
+rasterio
+pyproj
