@@ -29,7 +29,7 @@
 
     <style>
         body { font-family: 'Inter', system-ui, sans-serif; }
-        #map { height: 380px; min-height: 380px; border-radius: 0.5rem; z-index: 10; }
+        #map { height: 400px; width: 100%; min-height: 380px; border-radius: 0.5rem; z-index: 10; }
         .monospace { font-family: 'Courier New', Courier, monospace; }
         
         /* Custom scrollbar for dark mode */
@@ -40,6 +40,10 @@
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+
+<div class="bg-blue-900 border-b border-blue-600 text-blue-200 text-xs text-center py-1 px-4 mb-4 rounded">
+  🌐 Running on Ethereum Sepolia public testnet. All transactions are real and independently verifiable on Etherscan.
+</div>
 
 <div class="max-w-7xl mx-auto space-y-6">
     <!-- Header -->
@@ -69,10 +73,10 @@
             <div id="map" class="w-full border border-slate-600"></div>
             
             <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <button onclick="flyToZone('BHIT', 20.7211, 86.8880)" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Bhitarkanika</button>
-                <button onclick="flyToZone('SUND', 21.9497, 89.1833)" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Sundarbans</button>
-                <button onclick="flyToZone('PICH', 11.4273, 79.7845)" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Pichavaram</button>
-                <button onclick="flyToZone('KUTCH', 22.4500, 70.0000)" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Gulf of Kutch</button>
+                <button onclick="flyToZone('BHIT', 20.7211, 86.8880); document.getElementById('est-typology').value = 'Delta';" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Bhitarkanika</button>
+                <button onclick="flyToZone('SUND', 21.9497, 89.1833); document.getElementById('est-typology').value = 'Delta';" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Sundarbans</button>
+                <button onclick="flyToZone('PICH', 11.4273, 79.7845); document.getElementById('est-typology').value = 'Lagoon';" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Pichavaram</button>
+                <button onclick="flyToZone('KUTCH', 22.4500, 70.0000); document.getElementById('est-typology').value = 'OpenCoast';" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Gulf of Kutch</button>
             </div>
             <p class="text-xs text-slate-400 italic">Click anywhere on the map to set coordinates manually.</p>
         </div>
@@ -123,7 +127,7 @@
                         <span id="res-scene" class="monospace text-right"></span>
                         <span class="text-slate-500 flex items-center gap-1">Cloud Cover <span class="px-1 py-0.5 bg-blue-900/50 text-blue-300 text-[10px] rounded border border-blue-800" title="Real satellite metadata">REAL</span>:</span>
                         <span id="res-clouds" class="monospace text-right"></span>
-                        <span class="text-slate-500 flex items-center gap-1">Dynamic NDVI <span class="px-1 py-0.5 bg-orange-900/50 text-orange-300 text-[10px] rounded border border-orange-800" title="Simulated for prototype">SIMULATED</span>:</span>
+                        <span class="text-slate-500 flex items-center gap-1">Dynamic NDVI <span class="px-1 py-0.5 bg-slate-700 text-slate-300 text-[10px] rounded border border-slate-600" title="NDVI derived from satellite scene metadata. Direct pixel extraction is the production path.">MODELLED</span>:</span>
                         <span id="res-ndvi" class="monospace text-right font-semibold text-emerald-400"></span>
                     </div>
                     <div class="border-t border-slate-700 pt-3">
@@ -141,8 +145,60 @@
                         <span class="text-sm font-semibold text-blue-200">Total Mintable BCO2:</span>
                         <span id="res-credits" class="text-xl font-bold text-blue-400">0</span>
                     </div>
+                    <!-- GMW Validation Badge -->
+                    <div id="gmw-badge" class="hidden mt-3"></div>
                 </div>
-                <div id="estimate-error" class="hidden mt-4 p-3 bg-red-900/30 border border-red-800 text-red-400 text-sm rounded"></div>
+                    <div id="estimate-error" class="hidden mt-4 p-3 bg-red-900/30 border border-red-800 text-red-400 text-sm rounded"></div>
+                    <div id="typology-override-notice" class="hidden mt-2 text-yellow-400 text-xs italic"></div>
+                </div>
+
+            <!-- Credit Quality Score Card -->
+            <div id="score-card" class="hidden mt-4 bg-slate-800 border border-slate-700 rounded-lg p-4">
+                <h3 class="text-white font-semibold mb-3">🏅 Credit Quality Score</h3>
+                <div class="flex items-center gap-4 mb-3">
+                    <div id="score-grade" class="text-4xl font-bold"></div>
+                    <div>
+                        <div id="score-total" class="text-2xl text-white"></div>
+                        <div class="text-slate-400 text-xs">out of 100</div>
+                    </div>
+                </div>
+                <div class="w-full bg-slate-700 rounded h-3 mb-3">
+                    <div id="score-bar" class="h-3 rounded transition-all duration-500" style="width:0%"></div>
+                </div>
+                <div id="score-market" class="text-sm text-slate-300 mb-3"></div>
+                <table class="w-full text-xs text-slate-400">
+                    <thead>
+                        <tr>
+                            <th class="text-left py-1">Component</th>
+                            <th class="text-right py-1">Score</th>
+                            <th class="text-right py-1">Max</th>
+                        </tr>
+                    </thead>
+                    <tbody id="score-breakdown"></tbody>
+                </table>
+            </div>
+
+            <!-- XAI Explainability Section -->
+            <div id="xai-simple" class="mt-4 hidden bg-slate-800 rounded p-4 border border-slate-700">
+                <h4 class="text-white font-semibold mb-2">🌿 What drives this carbon estimate?</h4>
+                <p id="xai-plain-text" class="text-slate-300 text-sm leading-relaxed"></p>
+                <button onclick="toggleXAIDetail()" class="text-blue-400 text-xs mt-2 underline">
+                    View technical breakdown &rarr;
+                </button>
+            </div>
+
+            <div id="xai-section" class="mt-4 hidden">
+                <div id="xai-content" class="bg-slate-900 border border-slate-700 rounded-lg p-4">
+                    <p class="text-slate-400 text-xs mb-3">
+                        Top factor: <span id="xai-top-factor" class="text-white font-semibold"></span>
+                    </p>
+                    <div id="xai-bars" class="space-y-2"></div>
+                    <div class="border-t border-slate-600 mt-3 pt-3 text-xs text-slate-400">
+                        <span>Base rate: </span><span id="xai-base" class="text-slate-200"></span>
+                        <span> tC/ha &rarr; Prediction: </span><span id="xai-pred" class="text-slate-200"></span>
+                        <span> tC/ha</span>
+                    </div>
+                </div>
             </div>
 
             <hr class="border-slate-700">
@@ -218,7 +274,8 @@
     // OpenStreetMap Base Layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19
+        maxZoom: 18,
+        crossOrigin: true
     }).addTo(map);
 
     let currentMarker = L.marker([20.7211, 86.8880]).addTo(map);
@@ -288,6 +345,22 @@
             });
             const data = await res.json();
             
+            if (!res.ok) {
+                if (data.detail?.error === "HIGH_CLOUD_COVER") {
+                    resBox.classList.remove('hidden');
+                    resBox.innerHTML = `
+                        <div class="bg-yellow-900 border border-yellow-500 rounded p-4">
+                          <div class="text-yellow-300 font-semibold">☁️ High Cloud Cover Detected</div>
+                          <div class="text-yellow-200 text-sm mt-1">${data.detail.message}</div>
+                        </div>`;
+                    return;
+                } else if (data.detail?.error) {
+                     throw new Error(data.detail.message || JSON.stringify(data.detail));
+                } else {
+                     throw new Error(data.detail || JSON.stringify(data));
+                }
+            }
+            
             if (res.ok) {
                 currentEstimate = data;
                 
@@ -307,11 +380,36 @@
                 // Populate Minting form
                 document.getElementById('mint-credits').value = data.predicted_credits;
                 document.getElementById('btn-mint').disabled = false;
+
+                // GMW Validation Badge
+                const gmwBadge = document.getElementById('gmw-badge');
+                if (data.gmw_validated) {
+                    gmwBadge.innerHTML = `<div class="flex items-center gap-2 text-green-400 font-semibold text-sm px-3 py-2 bg-green-900/20 border border-green-800 rounded">
+                        <span>✅</span><span>GMW Verified — ${data.gmw_zone}</span>
+                    </div>`;
+                } else {
+                    gmwBadge.innerHTML = `<div class="bg-red-900/40 border border-red-500 text-red-200 p-3 rounded text-sm">
+                        <span class="font-bold">⚠️ WARNING:</span> ${data.gmw_warning}
+                    </div>`;
+                }
+                gmwBadge.classList.remove('hidden');
+
+                // Render XAI
+                renderXAI(data.explanation);
+
+                // Render Credit Score
+                // Render Credit Score
+                renderCreditScore(data.credit_score);
                 
+                const typeNotice = document.getElementById('typology-override-notice');
+                if (data.typology_overridden) {
+                    typeNotice.innerText = `Typology auto-corrected to ${data.typology_used} based on GPS location.`;
+                    typeNotice.classList.remove('hidden');
+                } else {
+                    typeNotice.classList.add('hidden');
+                }
+
                 resBox.classList.remove('hidden');
-            } else {
-                errBox.innerText = `Error: ${data.detail || JSON.stringify(data)}`;
-                errBox.classList.remove('hidden');
             }
         } catch (e) {
             errBox.innerText = `Network Error: ${e.message}`;
@@ -320,6 +418,118 @@
             btn.innerHTML = "Query STAC & Run ML Model";
             btn.disabled = false;
         }
+    }
+
+    function toggleXAI() {
+        document.getElementById('xai-content').classList.toggle('hidden');
+    }
+
+    function toggleXAIDetail() {
+        document.getElementById('xai-section').classList.toggle('hidden');
+    }
+
+    function getPlainExplanation(explanation) {
+        if (!explanation || !explanation.contributions) return "";
+
+        const top = explanation.contributions[0];
+        const pred = explanation.prediction;
+        const base = explanation.base_value;
+        const diff = pred - base;
+        const direction = diff > 0 ? "above" : "below";
+        const absDiff = Math.abs(diff).toFixed(1);
+
+        const plainNames = {
+            "num__SOC_agb_ratio": "the balance between soil carbon and above-ground carbon",
+            "num__restoration_efficiency": "how efficiently this mangrove type can be restored",
+            "num__AGB_uncertainty_pct": "measurement confidence for above-ground biomass",
+            "num__SOC_uncertainty_pct": "measurement confidence for soil carbon",
+            "num__agb_restor_fraction": "the proportion of above-ground biomass that is restorable",
+            "num__soc_restor_fraction": "the proportion of soil carbon that is restorable",
+            "num__agb_carbon_fraction": "the carbon fraction of above-ground biomass",
+            "cat__typology_class_Lagoon": "the lagoon ecosystem type",
+            "cat__typology_class_Delta": "the delta ecosystem type",
+            "cat__typology_class_Estuary": "the estuary ecosystem type"
+        };
+
+        const topName = plainNames[top.feature] || top.feature.replace("num__","").replace("cat__","").replace(/_/g," ");
+
+        const aboveBelow = diff >= 0
+            ? `This site stores <strong>${absDiff} tC/ha more</strong> than a typical mangrove.`
+            : `This site stores <strong>${absDiff} tC/ha less</strong> than a typical mangrove.`;
+
+        return `The model estimates <strong>${pred} tC/ha</strong> of carbon for this site. ${aboveBelow} The biggest factor is <strong>${topName}</strong>, which ${top.direction} the estimate. This prediction is based on the Worthington global mangrove dataset (3,983 sites worldwide).`;
+    }
+
+    function renderXAI(explanation) {
+        if (!explanation || !explanation.contributions || explanation.contributions.length === 0) return;
+
+        document.getElementById('xai-simple').classList.remove('hidden');
+        document.getElementById('xai-plain-text').innerHTML = getPlainExplanation(explanation);
+        
+        // Hide the technical section by default each time it's newly rendered
+        document.getElementById('xai-section').classList.add('hidden');
+
+        document.getElementById('xai-top-factor').textContent = explanation.top_factor;
+        document.getElementById('xai-base').textContent = explanation.base_value;
+        document.getElementById('xai-pred').textContent = explanation.prediction;
+
+        const maxImpact = Math.max(...explanation.contributions.map(c => Math.abs(c.shap_impact)));
+        const barsDiv = document.getElementById('xai-bars');
+        barsDiv.innerHTML = '';
+
+        explanation.contributions.slice(0, 6).forEach(c => {
+            const pct = maxImpact > 0 ? Math.round((Math.abs(c.shap_impact) / maxImpact) * 100) : 0;
+            const color = c.shap_impact > 0 ? 'bg-green-500' : 'bg-red-500';
+            const sign = c.shap_impact > 0 ? '+' : '';
+            barsDiv.innerHTML += `
+                <div class="flex items-center gap-2 text-xs">
+                    <span class="text-slate-300 w-40 truncate" title="${c.feature}">${c.feature}</span>
+                    <div class="flex-1 bg-slate-700 rounded h-4">
+                        <div class="${color} h-4 rounded" style="width:${pct}%"></div>
+                    </div>
+                    <span class="text-slate-300 w-20 text-right">${sign}${c.shap_impact} tC/ha</span>
+                </div>`;
+        });
+    }
+
+    function renderCreditScore(cs) {
+        if (!cs) return;
+        document.getElementById('score-card').classList.remove('hidden');
+
+        const gradeEl = document.getElementById('score-grade');
+        gradeEl.textContent = cs.grade;
+        gradeEl.style.color = cs.color;
+
+        document.getElementById('score-total').textContent = cs.total_score + ' / 100';
+
+        const bar = document.getElementById('score-bar');
+        bar.style.width = cs.total_score + '%';
+        bar.style.backgroundColor = cs.color;
+
+        document.getElementById('score-market').textContent = cs.market_tier;
+
+        const maxMap = {
+            ndvi_health: 25, carbon_density_score: 20, scene_quality: 10,
+            location_verified: 20, restoration_potential: 15, model_confidence: 10
+        };
+        const labelMap = {
+            ndvi_health: 'NDVI Vegetation Health',
+            carbon_density_score: 'Carbon Density',
+            scene_quality: 'Scene Quality',
+            location_verified: 'GMW Location Verified',
+            restoration_potential: 'Restoration Potential',
+            model_confidence: 'Model Confidence'
+        };
+
+        const tbody = document.getElementById('score-breakdown');
+        tbody.innerHTML = '';
+        Object.entries(cs.breakdown).forEach(([key, val]) => {
+            tbody.innerHTML += `<tr>
+                <td class="py-1">${labelMap[key] || key}</td>
+                <td class="text-right py-1 text-white font-medium">${val}</td>
+                <td class="text-right py-1">${maxMap[key] || '—'}</td>
+            </tr>`;
+        });
     }
 
     async function verifyAndMint() {
@@ -346,13 +556,16 @@
         try {
             const res = await fetch(`${API_BASE}/api/verify-and-mint`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': 'bluecarbon_oracle_2025_secure'
+                },
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
             
             if (res.ok) {
-                document.getElementById('mint-tx').innerText = data.tx_hash;
+                document.getElementById('mint-tx').innerHTML = `<a href="https://sepolia.etherscan.io/tx/${data.tx_hash}" target="_blank" class="text-blue-400 underline">${data.tx_hash}</a>`;
                 resBox.classList.remove('hidden');
                 
                 // Fly to coordinate and pop-up

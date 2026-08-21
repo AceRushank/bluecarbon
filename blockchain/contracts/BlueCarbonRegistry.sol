@@ -49,6 +49,9 @@ contract BlueCarbonRegistry is Ownable {
     /// @dev    Typed reference to the token contract for direct calls.
     CarbonCreditToken private carbonToken;
 
+    uint256 public constant MAX_AREA_HECTARES = 50000;
+    uint256 public constant MAX_CARBON_PER_HA = 1500;
+
     // ── Events ───────────────────────────────────────────────────────────────
     event ProjectRegistered(
         string  indexed siteId,
@@ -110,6 +113,10 @@ contract BlueCarbonRegistry is Ownable {
         require(bytes(siteId).length > 0,               "BlueCarbonRegistry: empty siteId");
         require(areaHectares > 0,                        "BlueCarbonRegistry: area must be > 0");
         require(
+            areaHectares <= MAX_AREA_HECTARES,
+            "Area exceeds maximum allowed per project"
+        );
+        require(
             bytes(projects[siteId].siteId).length == 0,
             "BlueCarbonRegistry: siteId already registered"
         );
@@ -157,6 +164,10 @@ contract BlueCarbonRegistry is Ownable {
             "BlueCarbonRegistry: project already verified"
         );
         require(predictedCarbonTons > 0, "BlueCarbonRegistry: carbon tons must be > 0");
+        require(
+            predictedCarbonTons <= projects[siteId].areaHectares * MAX_CARBON_PER_HA,
+            "Carbon amount exceeds physical maximum for given area"
+        );
 
         // Update project state
         projects[siteId].isVerified    = true;

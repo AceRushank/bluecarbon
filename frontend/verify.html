@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Project | Blue Carbon MRV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .monospace { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-3xl mx-auto space-y-6">
+        <header class="flex justify-between items-end border-b border-slate-700 pb-4">
+            <div>
+                <h1 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Project Verification</h1>
+                <p class="text-slate-400 mt-1">Blue Carbon MRV on Sepolia Testnet</p>
+            </div>
+            <a href="/" class="text-blue-400 hover:text-blue-300 underline text-sm">← Back to Estimator</a>
+        </header>
+
+        {% if error %}
+        <div class="bg-red-900/50 border border-red-500 rounded p-6 text-center">
+            <h2 class="text-xl font-semibold text-red-400 mb-2">Error</h2>
+            <p class="text-slate-300">{{ error }}</p>
+            <p class="mt-4"><a href="/" class="text-blue-400 underline">Return Home</a></p>
+        </div>
+        {% else %}
+        
+        <div class="bg-slate-800 rounded-lg p-6 shadow-lg border border-slate-700">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="bg-emerald-900/50 text-emerald-400 p-2 rounded-full">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h2 class="text-2xl font-semibold">Verified Registry Entry</h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-900/50 p-3 rounded">
+                    <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Site ID</p>
+                    <p class="font-medium">{{ raw_data[0] }}</p>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded">
+                    <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Owner / NGO Wallet</p>
+                    <p class="font-medium text-sm monospace text-slate-300 truncate" title="{{ raw_data[1] }}">{{ raw_data[1] }}</p>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded">
+                    <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Coordinates</p>
+                    <p class="font-medium">{{ raw_data[2] }}, {{ raw_data[3] }}</p>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded">
+                    <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Area (Hectares)</p>
+                    <p class="font-medium">{{ raw_data[4] }} ha</p>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded">
+                    <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Verification Status</p>
+                    <p class="font-medium text-emerald-400">
+                        {% if raw_data[5] %} Fully Verified {% else %} Pending {% endif %}
+                    </p>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded">
+                    <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Carbon Tons</p>
+                    <p class="font-medium">{{ raw_data[6] }} tC</p>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded">
+                    <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Credits Minted ($BCO2)</p>
+                    <p class="font-medium text-blue-400">{{ raw_data[7] }}</p>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded">
+                    <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">IPFS Proof Hash</p>
+                    <p class="font-medium text-sm monospace truncate" title="{{ raw_data[8] }}">
+                        <a href="https://gateway.pinata.cloud/ipfs/{{ raw_data[8] }}" target="_blank" class="text-blue-400 underline">{{ raw_data[8] }}</a>
+                    </p>
+                </div>
+                <div class="bg-slate-900/50 p-3 rounded">
+                    <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Registration Timestamp</p>
+                    <p class="font-medium">{{ raw_data[9] }}</p>
+                </div>
+            </div>
+            
+            <div class="mt-8 border-t border-slate-700 pt-6">
+                <!-- Data Integrity Section for Step B5 later -->
+                <div id="integrity-section" class="bg-slate-900 p-4 rounded border border-slate-600">
+                    <h3 class="text-lg font-medium mb-2 text-slate-300">Blockchain Validation</h3>
+                    <p class="text-sm text-slate-400">On-chain registry data displayed above.</p>
+                </div>
+            </div>
+        </div>
+        
+        {% endif %}
+    </div>
+</body>
+</html>

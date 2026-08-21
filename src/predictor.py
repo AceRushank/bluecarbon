@@ -308,8 +308,8 @@ def predict_carbon(site_data: dict) -> dict:
         # ── Derived quantities ────────────────────────────────────────────────
         CO2e = meta.get("CO2e_factor", 3.67)
 
-        agb_frac = _AGB_FRACTION_DEFAULT
-        soc_frac = 1.0 - agb_frac
+        agb_frac = 0.30
+        soc_frac = 0.70
 
         aboveground_tC = pred_density_tC_ha * agb_frac
         soil_tC        = pred_density_tC_ha * soc_frac
@@ -369,6 +369,71 @@ def predict_carbon(site_data: dict) -> dict:
                     f"{n_default} filled with training defaults."
                 )
 
+        # ── SHAP Explanation ──────────────────────────────────────────────────
+        try:
+            import shap
+            from sklearn.pipeline import Pipeline as SKPipeline
+
+            # Extract the RF (last step) and the preprocessor (all prior steps)
+            step_names      = list(pipeline.named_steps.keys())
+            rf_step_name    = step_names[-1]
+            rf_model        = pipeline.named_steps[rf_step_name]
+            preprocessor    = SKPipeline(steps=list(pipeline.steps[:-1]))
+
+            # Transform through preprocessor only
+            X_transformed = preprocessor.transform(X_row)
+
+            # Feature names after preprocessing
+            try:
+                feature_names = preprocessor.get_feature_names_out().tolist()
+            except Exception:
+                feature_names = [f"feature_{i}" for i in range(X_transformed.shape[1])]
+
+            # Compute SHAP values
+            explainer   = shap.TreeExplainer(rf_model)
+            shap_values = explainer.shap_values(X_transformed)
+
+            # Handle both 1D and 2D shap output
+            if isinstance(shap_values, list):
+                sv = shap_values[0]
+            else:
+                sv = shap_values[0]
+            sv_flat = np.array(sv).flatten()
+
+            base_value = explainer.expected_value
+            if isinstance(base_value, (list, np.ndarray)):
+                base_value = float(np.array(base_value).flatten()[0])
+            else:
+                base_value = float(base_value)
+
+            # Build contributions list
+            contributions = [
+                {
+                    "feature"     : fname,
+                    "shap_impact" : round(float(sval), 3),
+                    "direction"   : "increases" if float(sval) > 0 else "decreases",
+                }
+                for fname, sval in zip(feature_names, sv_flat)
+            ]
+            contributions.sort(key=lambda x: abs(x["shap_impact"]), reverse=True)
+            top_factor = contributions[0]["feature"] if contributions else "N/A"
+
+            explanation = {
+                "base_value"    : round(base_value, 3),
+                "prediction"    : round(float(pred_density_tC_ha), 3),
+                "contributions" : contributions,
+                "top_factor"    : top_factor,
+            }
+
+        except Exception as shap_err:
+            explanation = {
+                "base_value"    : 0,
+                "prediction"    : round(float(pred_density_tC_ha), 3),
+                "contributions" : [],
+                "top_factor"    : "unavailable",
+                "error"         : str(shap_err),
+            }
+
         return {
             "predicted_carbon_tC_ha" : round(carbon_tC_ha,   4),
             "predicted_carbon_MgC"   : round(pred_total_MgC,  2),
@@ -378,6 +443,7 @@ def predict_carbon(site_data: dict) -> dict:
             "confidence_level"       : confidence,
             "input_type"             : input_type,
             "features_actually_used" : features_used,
+            "explanation"            : explanation,
             "status"                 : "success",
             "message"                : note,
         }

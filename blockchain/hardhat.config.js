@@ -19,6 +19,14 @@ module.exports = {
       chainId: 31337,
     },
 
+    // ── Ethereum Sepolia Testnet ─────────────────────────────────────────────
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL || "https://rpc.sepolia.org",
+      accounts: process.env.PRIVATE_KEY ? [`0x${process.env.PRIVATE_KEY}`] : [],
+      chainId: 11155111,
+      gasPrice: "auto",
+    },
+
     // ── Polygon Amoy Testnet ──────────────────────────────────────────────────
     // Required env vars: PRIVATE_KEY, AMOY_RPC_URL (see .env.example)
     amoy: {
@@ -32,6 +40,7 @@ module.exports = {
   // ── Etherscan / Polygonscan verification ─────────────────────────────────
   etherscan: {
     apiKey: {
+      sepolia: process.env.ETHERSCAN_API_KEY || "",
       polygonAmoy: process.env.POLYGONSCAN_API_KEY || "",
     },
     customChains: [

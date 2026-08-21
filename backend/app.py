@@ -2,11 +2,14 @@ import os
 import json
 import hashlib
 from typing import Optional, List
-from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException, Header
+import re
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.templating import Jinja2Templates
+from fastapi import Request
 from web3 import Web3
 from web3.exceptions import ContractLogicError
 from dotenv import load_dotenv
@@ -17,14 +20,29 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.live_satellite import fetch_live_sentinel2_bands
 from src.predictor import predict_carbon
+from src.gmw_validator import get_validator
+from src.credit_scorer import calculate_credit_score
 
 # ── 1. Init & Config ──────────────────────────────────────────────────────────
 load_dotenv(os.path.join(os.path.dirname(__file__), '../blockchain/.env'))
 
-RPC_URL = os.getenv("AMOY_RPC_URL", "http://127.0.0.1:8545")
+NETWORK_CONFIG = {
+    "sepolia": {"chain_id": 11155111, "rpc_env": "SEPOLIA_RPC_URL", "fallback": "https://rpc.sepolia.org"},
+    "amoy": {"chain_id": 80002, "rpc_env": "AMOY_RPC_URL", "fallback": "https://rpc-amoy.polygon.technology/"},
+    "local": {"chain_id": 31337, "rpc_env": "RPC_URL", "fallback": "http://127.0.0.1:8545"}
+}
+
+ACTIVE_NETWORK = os.getenv("NETWORK", "local").lower()
+if ACTIVE_NETWORK not in NETWORK_CONFIG:
+    ACTIVE_NETWORK = "local"
+
+cfg = NETWORK_CONFIG[ACTIVE_NETWORK]
+CHAIN_ID = cfg["chain_id"]
+RPC_URL = os.getenv(cfg["rpc_env"], cfg["fallback"])
+
 # Fallback to Hardhat Account #0 if no key is provided
 ORACLE_PRIVATE_KEY = os.getenv("PRIVATE_KEY") or os.getenv("ORACLE_PRIVATE_KEY") or "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-CHAIN_ID = 80002 if "amoy" in RPC_URL.lower() else 31337
+MINT_API_KEY = os.getenv("MINT_API_KEY", "bluecarbon_oracle_2025_secure")
 
 # Initialize Web3
 w3 = Web3(Web3.HTTPProvider(RPC_URL))
@@ -36,28 +54,57 @@ TOKEN_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 # Load Contract Data
 contracts_file = os.path.join(os.path.dirname(__file__), '../blockchain/deployed_contracts.json')
 try:
-    with open(contracts_file, 'r') as f:
-        deployed_data = json.load(f)
-    registry_data = deployed_data["contracts"]["BlueCarbonRegistry"]
-    token_data = deployed_data["contracts"]["CarbonCreditToken"]
+    with open(contracts_file, 'r', encoding='utf-8') as f:
+        deployed_data_all = json.load(f)
+        
+    deployed_data = deployed_data_all.get(ACTIVE_NETWORK, {})
+    if not deployed_data:
+        print(f"Warning: No deployment found for network '{ACTIVE_NETWORK}'.")
+        
+    registry_data = deployed_data.get("contracts", {}).get("BlueCarbonRegistry", {})
+    token_data = deployed_data.get("contracts", {}).get("CarbonCreditToken", {})
     
     REGISTRY_ADDRESS = registry_data.get("address", REGISTRY_ADDRESS)
-    REGISTRY_ABI = registry_data["abi"]
+    REGISTRY_ABI = registry_data.get("abi")
     TOKEN_ADDRESS = token_data.get("address", TOKEN_ADDRESS)
-    TOKEN_ABI = token_data["abi"]
+    TOKEN_ABI = token_data.get("abi")
     
-    registry_contract = w3.eth.contract(address=REGISTRY_ADDRESS, abi=REGISTRY_ABI)
-    token_contract = w3.eth.contract(address=TOKEN_ADDRESS, abi=TOKEN_ABI)
+    if REGISTRY_ABI and TOKEN_ABI:
+        registry_contract = w3.eth.contract(address=REGISTRY_ADDRESS, abi=REGISTRY_ABI)
+        token_contract = w3.eth.contract(address=TOKEN_ADDRESS, abi=TOKEN_ABI)
+    else:
+        print("Warning: Missing ABIs in deployed_contracts.json")
+        registry_contract = None
+        token_contract = None
 except Exception as e:
     print(f"Warning: Could not load contract ABIs: {e}")
     registry_contract = None
     token_contract = None
 
+print("="*60)
+print(f"Blue Carbon MRV API Started")
+print(f"Network    : {ACTIVE_NETWORK} (Chain ID: {CHAIN_ID})")
+from urllib.parse import urlparse
+try:
+    parsed_url = urlparse(RPC_URL)
+    masked_rpc = f"{parsed_url.scheme}://{parsed_url.netloc}/...[MASKED]"
+except:
+    masked_rpc = "...[MASKED]"
+
+print(f"RPC URL    : {masked_rpc}")
+print(f"Registry   : {REGISTRY_ADDRESS}")
+print(f"Token      : {TOKEN_ADDRESS}")
+print("="*60)
+
 import time
 MOCK_REGISTRY = []
+pending_validations = {}
 
 # Initialize FastAPI app
 app = FastAPI(title="Blue Carbon MRV API")
+
+# Mount templates
+templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), '../frontend'))
 
 app.add_middleware(
     CORSMiddleware,
@@ -69,10 +116,10 @@ app.add_middleware(
 
 # ── Pydantic Models ───────────────────────────────────────────────────────────
 class EstimateRequest(BaseModel):
-    site_id: str
-    latitude: float
-    longitude: float
-    area_hectares: float
+    site_id: str = Field(..., min_length=5, max_length=30, pattern=r"^[A-Z0-9\-]+$")
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    area_hectares: float = Field(..., gt=0, le=50000, description="Max 50,000 ha per project")
     manual_ndvi: Optional[float] = None
     typology_class: Optional[str] = "OpenCoast"
 
@@ -81,7 +128,6 @@ class VerifyRequest(BaseModel):
     latitude: str
     longitude: str
     area_hectares: float
-    predicted_credits: float
     owner_address: str
 
 class RetireRequest(BaseModel):
@@ -105,10 +151,38 @@ def health_check():
 
 @app.post("/api/estimate")
 def estimate_carbon(req: EstimateRequest):
+    validator = get_validator()
+    gmw_result = validator.validate(req.latitude, req.longitude)
+    
+    gmw_zone = gmw_result.get("gmw_zone")
+    ZONE_TYPOLOGY_MAP = {
+        "Sundarbans": "Delta",
+        "Bhitarkanika": "Delta", 
+        "Pichavaram": "Lagoon",
+        "Gulf of Kutch": "OpenCoast"
+    }
+    typology_class_input = req.typology_class or "OpenCoast"
+    if gmw_zone and gmw_zone in ZONE_TYPOLOGY_MAP:
+        derived_typology = ZONE_TYPOLOGY_MAP[gmw_zone]
+    else:
+        derived_typology = typology_class_input
+
     # 1. Fetch live satellite imagery (metadata + simulated bands)
     stac_res = fetch_live_sentinel2_bands(req.latitude, req.longitude)
     if stac_res["status"] == "error":
         raise HTTPException(status_code=400, detail=stac_res["message"])
+        
+    cloud_cover = float(stac_res["metadata"].get("cloud_cover_percent", 0))
+    if cloud_cover > 20:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "HIGH_CLOUD_COVER",
+                "message": f"Cloud cover is {cloud_cover:.1f}% — exceeds 20% threshold for reliable carbon estimation. The system will automatically retry when a clear scene is available (Sentinel-2 revisit: 5 days).",
+                "cloud_cover": cloud_cover,
+                "retry_in_days": 5
+            }
+        )
     
     # 2. Build input dictionary for predictor (using STAC bands)
     bands = stac_res["bands"]
@@ -116,7 +190,7 @@ def estimate_carbon(req: EstimateRequest):
         bands["NDVI"] = req.manual_ndvi
         
     site_data = {
-        "typology_class": req.typology_class or "OpenCoast",
+        "typology_class": derived_typology,
         "latitude": req.latitude,
         "longitude": req.longitude,
         **bands
@@ -135,10 +209,37 @@ def estimate_carbon(req: EstimateRequest):
     agb_tC = pred_res["aboveground_carbon_tC"] * req.area_hectares
     soc_tC = pred_res["soil_organic_carbon_tC"] * req.area_hectares
     total_credits = pred_res["credits_per_hectare"] * req.area_hectares
-    
+
+    # Credit quality score
+    credit_score = calculate_credit_score(
+        ndvi=float(ndvi_val),
+        carbon_density=float(tC_ha),
+        cloud_cover=float(stac_res["metadata"].get("cloud_cover_percent", 10)),
+        gmw_validated=gmw_result["gmw_validated"],
+        restoration_fraction=float(
+            pred_res.get("features_actually_used", {}) and 0.5 or 0.5
+        ),
+        model_confidence=0.8,
+        typology_mean=200.0,
+    )
+
+    pending_validations[req.site_id] = {
+        "gmw_validated": gmw_result["gmw_validated"],
+        "fraud_flag": gmw_result["fraud_flag"],
+        "gmw_zone": gmw_result["gmw_zone"],
+        "lat": req.latitude,
+        "lon": req.longitude,
+        "carbon_tons": int(total_credits),
+        "credit_score": credit_score["total_score"],
+        "credit_grade": credit_score["grade"],
+        "timestamp": time.time()
+    }
+
     return {
         "site_id": req.site_id,
         "NDVI": ndvi_val,
+        "typology_used": derived_typology,
+        "typology_overridden": derived_typology != typology_class_input,
         "satellite_meta": {
             "scene_id": stac_res["metadata"].get("scene_id", "N/A"),
             "cloud_cover_percent": stac_res["metadata"].get("cloud_cover_percent", 0.0),
@@ -150,6 +251,12 @@ def estimate_carbon(req: EstimateRequest):
         "total_carbon_stock_tC": total_tC,
         "total_credits_tCO2e": total_credits,
         "predicted_credits": total_credits,
+        "gmw_validated": gmw_result["gmw_validated"],
+        "gmw_zone": gmw_result["gmw_zone"],
+        "fraud_flag": gmw_result["fraud_flag"],
+        "gmw_warning": gmw_result["warning"],
+        "explanation": pred_res.get("explanation", {}),
+        "credit_score": credit_score,
         "data_provenance": {
             "REAL": ["scene_id", "date_acquired", "cloud_cover_percent"],
             "SIMULATED": ["B2_blue", "B3_green", "B4_red", "B8_nir", "B11_swir", "NDVI"],
@@ -164,14 +271,45 @@ def estimate_carbon(req: EstimateRequest):
     }
 
 @app.post("/api/verify-and-mint")
-def verify_and_mint(req: VerifyRequest):
+def verify_and_mint(req: VerifyRequest, x_api_key: str = Header(None)):
+    if x_api_key != MINT_API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "UNAUTHORIZED",
+                "message": "Valid API key required for minting operations."
+            }
+        )
+
+    if not re.match(r'^[A-Z0-9\-]{5,30}$', req.site_id):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "INVALID_SITE_ID",
+                "message": "Site ID must be 5-30 uppercase alphanumeric characters and hyphens only."
+            }
+        )
+        
+    stored_time = pending_validations.get(req.site_id, {}).get("timestamp", 0)
+    if time.time() - stored_time > 3600:
+        if req.site_id in pending_validations:
+            del pending_validations[req.site_id]
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "VALIDATION_EXPIRED",
+                "message": "Estimate has expired. Please re-run the satellite estimate before minting."
+            }
+        )
+
+    carbon_tons = int(pending_validations[req.site_id]["carbon_tons"])
+
     oracle_account = w3.eth.account.from_key(ORACLE_PRIVATE_KEY)
     
     # Generate mock IPFS Proof Hash
     payload = req.model_dump_json()
     hash_hex = hashlib.sha256(payload.encode()).hexdigest()
     ipfs_hash = f"ipfs://mock_{hash_hex[:16]}"
-    carbon_tons = int(req.predicted_credits)
     
     if registry_contract:
         try:
@@ -200,6 +338,16 @@ def verify_and_mint(req: VerifyRequest):
             print(f"Web3 transaction failed: {e}. Falling back to mock data.")
             
     # Fallback logic
+    existing = next((p for p in MOCK_REGISTRY if p["site_id"] == req.site_id), None)
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "ALREADY_MINTED",
+                "message": f"Site {req.site_id} has already been registered in the registry."
+            }
+        )
+        
     mock_tx_hash = "0x" + hashlib.sha256((payload + "tx").encode()).hexdigest()
     MOCK_REGISTRY.append({
         "site_id": req.site_id,
@@ -247,6 +395,36 @@ def get_registry_projects():
             
     projects.extend(MOCK_REGISTRY)
     return {"projects": projects}
+
+@app.get("/verify/{project_id}")
+async def verify_page(request: Request, project_id: str):
+    if not registry_contract:
+        return templates.TemplateResponse(request=request, name="verify.html", context={
+            "error": "Registry contract not initialized (mock mode)."
+        })
+    
+    try:
+        project = registry_contract.functions.getProject(project_id).call()
+        print("="*40)
+        print(f"Raw Project Tuple for {project_id}:")
+        print(project)
+        print("="*40)
+        
+        if not project[0]:
+            return templates.TemplateResponse(request=request, name="verify.html", context={
+                "error": "Project Not Found"
+            })
+            
+        return templates.TemplateResponse(request=request, name="verify.html", context={
+            "project_id": project_id,
+            "raw_data": project,
+            "error": None
+        })
+    except Exception as e:
+        print(f"Error in verify_page: {e}")
+        return templates.TemplateResponse(request=request, name="verify.html", context={
+            "error": "Project Not Found"
+        })
 
 @app.post("/api/retire")
 def retire_credits(req: RetireRequest):
