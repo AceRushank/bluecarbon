@@ -15,7 +15,7 @@
         <header class="flex justify-between items-end border-b border-slate-700 pb-4">
             <div>
                 <h1 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">Project Verification</h1>
-                <p class="text-slate-400 mt-1">Blue Carbon MRV on Sepolia Testnet</p>
+                <p class="text-slate-400 mt-1">Blue Carbon MRV on {{ network_name }}</p>
             </div>
             <a href="/" class="text-blue-400 hover:text-blue-300 underline text-sm">← Back to Estimator</a>
         </header>
@@ -61,11 +61,11 @@
                 </div>
                 <div class="bg-slate-900/50 p-3 rounded">
                     <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Carbon Tons</p>
-                    <p class="font-medium">{{ raw_data[6] }} tC</p>
+                    <p class="font-medium">{{ raw_data[6] }} tCO2e</p>
                 </div>
                 <div class="bg-slate-900/50 p-3 rounded">
                     <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Credits Minted ($BCO2)</p>
-                    <p class="font-medium text-blue-400">{{ raw_data[7] }}</p>
+                    <p class="font-medium text-blue-400">{% if raw_data[7] %}{{ (raw_data[7] / 10**18)|int }}{% else %}0{% endif %}</p>
                 </div>
                 <div class="bg-slate-900/50 p-3 rounded">
                     <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">IPFS Proof Hash</p>

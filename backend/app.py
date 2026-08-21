@@ -14,14 +14,33 @@ from web3 import Web3
 from web3.exceptions import ContractLogicError
 from dotenv import load_dotenv
 
+import joblib
+import numpy as np
+import time
+
 # Ensure we can import src modules
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src.live_satellite import fetch_live_sentinel2_bands
-from src.predictor import predict_carbon
 from src.gmw_validator import get_validator
 from src.credit_scorer import calculate_credit_score
+
+# ── Load Sundarbans RandomForest model ────────────────────────────────────────
+_MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'model.pkl')
+try:
+    _RF_MODEL = joblib.load(_MODEL_PATH)
+    print(f"[MODEL]  Loaded model.pkl from {_MODEL_PATH}")
+except FileNotFoundError:
+    _RF_MODEL = None
+    print(f"[MODEL]  WARNING: model.pkl not found at {_MODEL_PATH}. Run src/train_model.py first.")
+
+def predict_carbon_density(ndvi: float, lat: float, lon: float) -> float:
+    """Predict carbon density (tC/ha) using [NDVI, lat, lon] features."""
+    if _RF_MODEL is None:
+        raise RuntimeError("model.pkl not loaded — run src/train_model.py")
+    X = np.array([[ndvi, lat, lon]])
+    return float(_RF_MODEL.predict(X)[0])
 
 # ── 1. Init & Config ──────────────────────────────────────────────────────────
 load_dotenv(os.path.join(os.path.dirname(__file__), '../blockchain/.env'))
@@ -121,7 +140,6 @@ class EstimateRequest(BaseModel):
     longitude: float = Field(..., ge=-180, le=180)
     area_hectares: float = Field(..., gt=0, le=50000, description="Max 50,000 ha per project")
     manual_ndvi: Optional[float] = None
-    typology_class: Optional[str] = "OpenCoast"
 
 class VerifyRequest(BaseModel):
     site_id: str
@@ -151,122 +169,118 @@ def health_check():
 
 @app.post("/api/estimate")
 def estimate_carbon(req: EstimateRequest):
+    # ── Sundarbans bounding box check ───────────────────────────────────────
+    # Model trained on lat 21.2–23.1, lon 87.8–89.9 only
+    SUND_LAT_MIN, SUND_LAT_MAX = 21.2, 23.1
+    SUND_LON_MIN, SUND_LON_MAX = 87.8, 89.9
+    if not (SUND_LAT_MIN <= req.latitude <= SUND_LAT_MAX and
+            SUND_LON_MIN <= req.longitude <= SUND_LON_MAX):
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "OUT_OF_REGION",
+                "message": "Coordinates outside Sundarbans model training region "
+                           f"(lat {SUND_LAT_MIN}–{SUND_LAT_MAX}, "
+                           f"lon {SUND_LON_MIN}–{SUND_LON_MAX})."
+            }
+        )
+
+    # ── GMW spatial validation ──────────────────────────────────────────────
     validator = get_validator()
     gmw_result = validator.validate(req.latitude, req.longitude)
-    
-    gmw_zone = gmw_result.get("gmw_zone")
-    ZONE_TYPOLOGY_MAP = {
-        "Sundarbans": "Delta",
-        "Bhitarkanika": "Delta", 
-        "Pichavaram": "Lagoon",
-        "Gulf of Kutch": "OpenCoast"
-    }
-    typology_class_input = req.typology_class or "OpenCoast"
-    if gmw_zone and gmw_zone in ZONE_TYPOLOGY_MAP:
-        derived_typology = ZONE_TYPOLOGY_MAP[gmw_zone]
-    else:
-        derived_typology = typology_class_input
 
-    # 1. Fetch live satellite imagery (metadata + simulated bands)
+    # ── Fetch live Sentinel-2 scene (gets real scene_id, cloud cover, NDVI) ─
     stac_res = fetch_live_sentinel2_bands(req.latitude, req.longitude)
     if stac_res["status"] == "error":
         raise HTTPException(status_code=400, detail=stac_res["message"])
-        
+
     cloud_cover = float(stac_res["metadata"].get("cloud_cover_percent", 0))
     if cloud_cover > 20:
         raise HTTPException(
             status_code=422,
             detail={
                 "error": "HIGH_CLOUD_COVER",
-                "message": f"Cloud cover is {cloud_cover:.1f}% — exceeds 20% threshold for reliable carbon estimation. The system will automatically retry when a clear scene is available (Sentinel-2 revisit: 5 days).",
+                "message": f"Cloud cover is {cloud_cover:.1f}% — exceeds 20% threshold. Sentinel-2 revisit: 5 days.",
                 "cloud_cover": cloud_cover,
                 "retry_in_days": 5
             }
         )
-    
-    # 2. Build input dictionary for predictor (using STAC bands)
-    bands = stac_res["bands"]
-    if req.manual_ndvi is not None:
-        bands["NDVI"] = req.manual_ndvi
-        
-    site_data = {
-        "typology_class": derived_typology,
-        "latitude": req.latitude,
-        "longitude": req.longitude,
-        **bands
-    }
-    
-    # 3. Call ML Predictor
-    pred_res = predict_carbon(site_data)
-    if pred_res["status"] == "error":
-        raise HTTPException(status_code=500, detail=pred_res["message"])
-    
-    # 4. Use predictor output to calculate total components
-    ndvi_val = req.manual_ndvi if req.manual_ndvi is not None else bands.get("NDVI", 0.0)
-    tC_ha = pred_res["predicted_carbon_tC_ha"]
-    
-    total_tC = tC_ha * req.area_hectares
-    agb_tC = pred_res["aboveground_carbon_tC"] * req.area_hectares
-    soc_tC = pred_res["soil_organic_carbon_tC"] * req.area_hectares
-    total_credits = pred_res["credits_per_hectare"] * req.area_hectares
 
-    # Credit quality score
+    # ── Determine NDVI to use ───────────────────────────────────────────────
+    bands = stac_res["bands"]
+    ndvi_val = req.manual_ndvi if req.manual_ndvi is not None else float(bands.get("NDVI", 0.65))
+
+    # ── Run Sundarbans RandomForest model: [NDVI, lat, lon] → tC/ha ────────
+    try:
+        tC_ha = predict_carbon_density(ndvi_val, req.latitude, req.longitude)
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # ── AGB / SOC split (28% / 72%) ────────────────────────────────────────
+    # Based on Murdiyarso et al. mangrove carbon partitioning constants
+    agb_density  = tC_ha * 0.28   # Above-Ground Biomass (tC/ha)
+    soc_density  = tC_ha * 0.72   # Soil Organic Carbon  (tC/ha)
+
+    # Scale up to the full site area
+    total_tC = tC_ha       * req.area_hectares
+    agb_tC   = agb_density * req.area_hectares
+    soc_tC   = soc_density * req.area_hectares
+
+    # ── Convert to CO2 equivalents: 1 tC = 3.67 tCO2e ──────────────────────
+    total_credits = total_tC * 3.67   # $BCO2 tokens to mint
+
+    # ── Credit quality score ────────────────────────────────────────────────
     credit_score = calculate_credit_score(
-        ndvi=float(ndvi_val),
-        carbon_density=float(tC_ha),
-        cloud_cover=float(stac_res["metadata"].get("cloud_cover_percent", 10)),
+        ndvi=ndvi_val,
+        carbon_density=tC_ha,
+        cloud_cover=cloud_cover,
         gmw_validated=gmw_result["gmw_validated"],
-        restoration_fraction=float(
-            pred_res.get("features_actually_used", {}) and 0.5 or 0.5
-        ),
+        restoration_fraction=0.5,
         model_confidence=0.8,
-        typology_mean=200.0,
+        typology_mean=173.34,   # Sundarbans dataset mean
     )
 
+    # ── Cache for server-side use in /api/verify-and-mint ──────────────────
     pending_validations[req.site_id] = {
         "gmw_validated": gmw_result["gmw_validated"],
-        "fraud_flag": gmw_result["fraud_flag"],
-        "gmw_zone": gmw_result["gmw_zone"],
-        "lat": req.latitude,
-        "lon": req.longitude,
-        "carbon_tons": int(total_credits),
-        "credit_score": credit_score["total_score"],
-        "credit_grade": credit_score["grade"],
-        "timestamp": time.time()
+        "fraud_flag":    gmw_result["fraud_flag"],
+        "gmw_zone":      gmw_result["gmw_zone"],
+        "lat":           req.latitude,
+        "lon":           req.longitude,
+        "carbon_tons":   int(total_credits),
+        "credit_score":  credit_score["total_score"],
+        "credit_grade":  credit_score["grade"],
+        "timestamp":     time.time()
     }
 
     return {
-        "site_id": req.site_id,
-        "NDVI": ndvi_val,
-        "typology_used": derived_typology,
-        "typology_overridden": derived_typology != typology_class_input,
+        "site_id":                 req.site_id,
+        "NDVI":                    ndvi_val,
         "satellite_meta": {
-            "scene_id": stac_res["metadata"].get("scene_id", "N/A"),
-            "cloud_cover_percent": stac_res["metadata"].get("cloud_cover_percent", 0.0),
-            "NDVI": ndvi_val
+            "scene_id":            stac_res["metadata"].get("scene_id", "N/A"),
+            "cloud_cover_percent": cloud_cover,
+            "NDVI":                ndvi_val
         },
-        "carbon_density_tC_ha": tC_ha,
-        "aboveground_biomass_tC": agb_tC,
+        "carbon_density_tC_ha":    tC_ha,
+        "agb_density_tC_ha":       agb_density,
+        "soc_density_tC_ha":       soc_density,
+        "aboveground_biomass_tC":  agb_tC,
         "soil_organic_carbon_tC": soc_tC,
-        "total_carbon_stock_tC": total_tC,
-        "total_credits_tCO2e": total_credits,
-        "predicted_credits": total_credits,
-        "gmw_validated": gmw_result["gmw_validated"],
-        "gmw_zone": gmw_result["gmw_zone"],
-        "fraud_flag": gmw_result["fraud_flag"],
-        "gmw_warning": gmw_result["warning"],
-        "explanation": pred_res.get("explanation", {}),
-        "credit_score": credit_score,
-        "data_provenance": {
-            "REAL": ["scene_id", "date_acquired", "cloud_cover_percent"],
-            "SIMULATED": ["B2_blue", "B3_green", "B4_red", "B8_nir", "B11_swir", "NDVI"],
-            "MODEL_OUTPUT": [
-                "predicted_carbon_tC_ha", 
-                "aboveground_carbon_tC", 
-                "soil_organic_carbon_tC", 
-                "credits_per_hectare",
-                "Note: Model was trained on typological data, not site-specific field plots."
-            ]
+        "total_carbon_stock_tC":   total_tC,
+        "total_credits_tCO2e":     total_credits,
+        "predicted_credits":       total_credits,
+        "gmw_validated":           gmw_result["gmw_validated"],
+        "gmw_zone":                gmw_result["gmw_zone"],
+        "fraud_flag":              gmw_result["fraud_flag"],
+        "gmw_warning":             gmw_result["warning"],
+        "credit_score":            credit_score,
+        "model_info": {
+            "model":    "RandomForestRegressor",
+            "features": ["NDVI", "lat", "lon"],
+            "dataset":  "Sundarbans Ground-Truth (76 plots, 2023)",
+            "agb_fraction": 0.28,
+            "soc_fraction": 0.72,
+            "co2e_factor":  3.67
         }
     }
 
@@ -400,7 +414,8 @@ def get_registry_projects():
 async def verify_page(request: Request, project_id: str):
     if not registry_contract:
         return templates.TemplateResponse(request=request, name="verify.html", context={
-            "error": "Registry contract not initialized (mock mode)."
+            "error": "Registry contract not initialized (mock mode).",
+            "network_name": ACTIVE_NETWORK
         })
     
     try:
@@ -412,18 +427,21 @@ async def verify_page(request: Request, project_id: str):
         
         if not project[0]:
             return templates.TemplateResponse(request=request, name="verify.html", context={
-                "error": "Project Not Found"
+                "error": "Project Not Found",
+                "network_name": ACTIVE_NETWORK
             })
             
         return templates.TemplateResponse(request=request, name="verify.html", context={
             "project_id": project_id,
             "raw_data": project,
-            "error": None
+            "error": None,
+            "network_name": ACTIVE_NETWORK
         })
     except Exception as e:
         print(f"Error in verify_page: {e}")
         return templates.TemplateResponse(request=request, name="verify.html", context={
-            "error": "Project Not Found"
+            "error": "Project Not Found",
+            "network_name": ACTIVE_NETWORK
         })
 
 @app.post("/api/retire")

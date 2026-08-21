@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blue Carbon MRV Dashboard</title>
+    <title>Sundarbans Blue Carbon MRV | Sepolia</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -52,7 +52,7 @@
             <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
                 Blue Carbon MRV & Registry
             </h1>
-            <p class="text-slate-400 mt-1">Satellite ML Inference & Blockchain Minting Prototype</p>
+            <p class="text-slate-400 mt-1">Sundarbans Mangrove Carbon Credits · Satellite ML · Blockchain (Sepolia)</p>
         </div>
         <div id="health-status" class="mt-4 md:mt-0 flex items-center space-x-2 text-sm font-medium px-4 py-2 rounded-full bg-slate-900 border border-slate-700">
             <span class="flex h-3 w-3 relative">
@@ -67,18 +67,18 @@
         <!-- Map Panel -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg flex flex-col space-y-4">
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-semibold text-slate-100">Coastal Zone Selection</h2>
+                <h2 class="text-xl font-semibold text-slate-100">📍 Sundarbans Region — Click to Select Site</h2>
             </div>
             
             <div id="map" class="w-full border border-slate-600"></div>
             
             <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <button onclick="flyToZone('BHIT', 20.7211, 86.8880); document.getElementById('est-typology').value = 'Delta';" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Bhitarkanika</button>
-                <button onclick="flyToZone('SUND', 21.9497, 89.1833); document.getElementById('est-typology').value = 'Delta';" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Sundarbans</button>
-                <button onclick="flyToZone('PICH', 11.4273, 79.7845); document.getElementById('est-typology').value = 'Lagoon';" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Pichavaram</button>
-                <button onclick="flyToZone('KUTCH', 22.4500, 70.0000); document.getElementById('est-typology').value = 'OpenCoast';" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">Gulf of Kutch</button>
+                <button onclick="flyToZone('SUND-CORE', 21.9497, 89.1833)" class="text-xs bg-slate-700 hover:bg-emerald-800 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">🌿 Core Zone</button>
+                <button onclick="flyToZone('SUND-WEST', 21.8, 88.6)" class="text-xs bg-slate-700 hover:bg-emerald-800 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">🌿 West Delta</button>
+                <button onclick="flyToZone('SUND-EAST', 22.1, 89.5)" class="text-xs bg-slate-700 hover:bg-emerald-800 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">🌿 East Delta</button>
+                <button onclick="flyToZone('SUND-NORTH', 22.5, 88.9)" class="text-xs bg-slate-700 hover:bg-emerald-800 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">🌿 North Zone</button>
             </div>
-            <p class="text-xs text-slate-400 italic">Click anywhere on the map to set coordinates manually.</p>
+            <p class="text-xs text-slate-400 italic">Model trained on 76 Sundarbans field plots (2023). Click anywhere in the delta to set coordinates.</p>
         </div>
 
         <!-- ML & Minting Panel -->
@@ -90,27 +90,20 @@
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Site ID</label>
-                        <input type="text" id="est-site-id" value="BHIT-LIVE-01" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
+                        <input type="text" id="est-site-id" value="SUND-LIVE-001" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Area (Hectares)</label>
                         <input type="number" id="est-area" value="100" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
                     </div>
                     <div>
+                    <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Latitude</label>
-                        <input type="number" step="any" id="est-lat" value="20.7211" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
+                        <input type="number" step="any" id="est-lat" value="21.9497" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Longitude</label>
-                        <input type="number" step="any" id="est-lon" value="86.8880" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Typology Class</label>
-                        <select id="est-typology" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
-                            <option value="OpenCoast">OpenCoast</option>
-                            <option value="Delta">Delta</option>
-                            <option value="Estuary">Estuary</option>
-                            <option value="Lagoon">Lagoon</option>
-                        </select>
+                        <input type="number" step="any" id="est-lon" value="89.1833" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
                     </div>
                 </div>
                 <button id="btn-estimate" onclick="runEstimate()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-4 rounded shadow transition-colors">
@@ -131,7 +124,7 @@
                         <span id="res-ndvi" class="monospace text-right font-semibold text-emerald-400"></span>
                     </div>
                     <div class="border-t border-slate-700 pt-3">
-                        <p class="text-xs font-bold text-blue-400 tracking-wider uppercase mb-2 flex items-center">Carbon Estimation Breakdown <span class="px-1 py-0.5 bg-purple-900/50 text-purple-300 text-[10px] rounded border border-purple-800 normal-case font-normal ml-2" title="Model prediction (trained on typological data, not site-specific plots)">MODEL OUTPUT</span></p>
+                        <p class="text-xs font-bold text-blue-400 tracking-wider uppercase mb-2 flex items-center">Carbon Estimation — Sundarbans RF Model <span class="px-1 py-0.5 bg-purple-900/50 text-purple-300 text-[10px] rounded border border-purple-800 normal-case font-normal ml-2" title="RandomForestRegressor trained on 76 Sundarbans ground-truth plots (2023). Features: NDVI, lat, lon.">RF MODEL</span></p>
                         <div class="grid grid-cols-2 gap-y-2 text-sm text-slate-300 items-center">
                             <span class="text-slate-500">Total Density:</span>
                             <span id="res-density" class="monospace text-right"></span>
@@ -178,27 +171,9 @@
                 </table>
             </div>
 
-            <!-- XAI Explainability Section -->
-            <div id="xai-simple" class="mt-4 hidden bg-slate-800 rounded p-4 border border-slate-700">
-                <h4 class="text-white font-semibold mb-2">🌿 What drives this carbon estimate?</h4>
-                <p id="xai-plain-text" class="text-slate-300 text-sm leading-relaxed"></p>
-                <button onclick="toggleXAIDetail()" class="text-blue-400 text-xs mt-2 underline">
-                    View technical breakdown &rarr;
-                </button>
-            </div>
-
-            <div id="xai-section" class="mt-4 hidden">
-                <div id="xai-content" class="bg-slate-900 border border-slate-700 rounded-lg p-4">
-                    <p class="text-slate-400 text-xs mb-3">
-                        Top factor: <span id="xai-top-factor" class="text-white font-semibold"></span>
-                    </p>
-                    <div id="xai-bars" class="space-y-2"></div>
-                    <div class="border-t border-slate-600 mt-3 pt-3 text-xs text-slate-400">
-                        <span>Base rate: </span><span id="xai-base" class="text-slate-200"></span>
-                        <span> tC/ha &rarr; Prediction: </span><span id="xai-pred" class="text-slate-200"></span>
-                        <span> tC/ha</span>
-                    </div>
-                </div>
+            <!-- Model Info Note -->
+            <div id="model-info-note" class="hidden mt-4 bg-slate-900/50 border border-slate-700 rounded p-3 text-xs text-slate-400">
+                <span class="text-emerald-400 font-semibold">🌱 Model:</span> RandomForestRegressor · Features: NDVI, lat, lon · 76 Sundarbans ground-truth plots (2023) · AGB 28% / SOC 72% split · 1 tC = 3.67 tCO2e
             </div>
 
             <hr class="border-slate-700">
@@ -269,7 +244,7 @@
     const API_BASE = window.location.origin;
 
     // --- LEAFLET MAP SETUP ---
-    const map = L.map('map').setView([18.5, 82.5], 5);
+    const map = L.map('map').setView([21.9497, 89.1833], 9);
     
     // OpenStreetMap Base Layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -278,7 +253,14 @@
         crossOrigin: true
     }).addTo(map);
 
-    let currentMarker = L.marker([20.7211, 86.8880]).addTo(map);
+    // Add a bounding box outline for the Sundarbans region
+    L.rectangle([[21.4, 88.0], [22.9, 89.9]], {
+        color: '#34d399', weight: 1.5, fill: true,
+        fillColor: '#34d399', fillOpacity: 0.05,
+        dashArray: '6 4'
+    }).addTo(map).bindTooltip('Sundarbans Delta (Model Training Region)', {permanent: false, direction: 'top'});
+
+    let currentMarker = L.marker([21.9497, 89.1833]).addTo(map);
 
     function updateMarkerAndInputs(lat, lng) {
         document.getElementById('est-lat').value = lat.toFixed(4);
@@ -291,9 +273,9 @@
     });
 
     function flyToZone(prefix, lat, lng) {
-        map.flyTo([lat, lng], 10, { duration: 1.5 });
+        map.flyTo([lat, lng], 11, { duration: 1.5 });
         updateMarkerAndInputs(lat, lng);
-        document.getElementById('est-site-id').value = `${prefix}-LIVE-${Math.floor(Math.random()*1000).toString().padStart(3,'0')}`;
+        document.getElementById('est-site-id').value = `${prefix}-${Math.floor(Math.random()*1000).toString().padStart(3,'0')}`;
     }
 
     // --- API LOGIC ---
@@ -333,8 +315,7 @@
             site_id: document.getElementById('est-site-id').value,
             latitude: parseFloat(document.getElementById('est-lat').value),
             longitude: parseFloat(document.getElementById('est-lon').value),
-            area_hectares: parseFloat(document.getElementById('est-area').value),
-            typology_class: document.getElementById('est-typology').value
+            area_hectares: parseFloat(document.getElementById('est-area').value)
         };
 
         try {
@@ -394,20 +375,12 @@
                 }
                 gmwBadge.classList.remove('hidden');
 
-                // Render XAI
-                renderXAI(data.explanation);
-
                 // Render Credit Score
                 // Render Credit Score
                 renderCreditScore(data.credit_score);
-                
-                const typeNotice = document.getElementById('typology-override-notice');
-                if (data.typology_overridden) {
-                    typeNotice.innerText = `Typology auto-corrected to ${data.typology_used} based on GPS location.`;
-                    typeNotice.classList.remove('hidden');
-                } else {
-                    typeNotice.classList.add('hidden');
-                }
+
+                // Show model info note
+                document.getElementById('model-info-note').classList.remove('hidden');
 
                 resBox.classList.remove('hidden');
             }
@@ -420,77 +393,10 @@
         }
     }
 
-    function toggleXAI() {
-        document.getElementById('xai-content').classList.toggle('hidden');
-    }
+    function toggleXAIDetail() { /* no-op — XAI removed in Sundarbans model */ }
 
-    function toggleXAIDetail() {
-        document.getElementById('xai-section').classList.toggle('hidden');
-    }
 
-    function getPlainExplanation(explanation) {
-        if (!explanation || !explanation.contributions) return "";
-
-        const top = explanation.contributions[0];
-        const pred = explanation.prediction;
-        const base = explanation.base_value;
-        const diff = pred - base;
-        const direction = diff > 0 ? "above" : "below";
-        const absDiff = Math.abs(diff).toFixed(1);
-
-        const plainNames = {
-            "num__SOC_agb_ratio": "the balance between soil carbon and above-ground carbon",
-            "num__restoration_efficiency": "how efficiently this mangrove type can be restored",
-            "num__AGB_uncertainty_pct": "measurement confidence for above-ground biomass",
-            "num__SOC_uncertainty_pct": "measurement confidence for soil carbon",
-            "num__agb_restor_fraction": "the proportion of above-ground biomass that is restorable",
-            "num__soc_restor_fraction": "the proportion of soil carbon that is restorable",
-            "num__agb_carbon_fraction": "the carbon fraction of above-ground biomass",
-            "cat__typology_class_Lagoon": "the lagoon ecosystem type",
-            "cat__typology_class_Delta": "the delta ecosystem type",
-            "cat__typology_class_Estuary": "the estuary ecosystem type"
-        };
-
-        const topName = plainNames[top.feature] || top.feature.replace("num__","").replace("cat__","").replace(/_/g," ");
-
-        const aboveBelow = diff >= 0
-            ? `This site stores <strong>${absDiff} tC/ha more</strong> than a typical mangrove.`
-            : `This site stores <strong>${absDiff} tC/ha less</strong> than a typical mangrove.`;
-
-        return `The model estimates <strong>${pred} tC/ha</strong> of carbon for this site. ${aboveBelow} The biggest factor is <strong>${topName}</strong>, which ${top.direction} the estimate. This prediction is based on the Worthington global mangrove dataset (3,983 sites worldwide).`;
-    }
-
-    function renderXAI(explanation) {
-        if (!explanation || !explanation.contributions || explanation.contributions.length === 0) return;
-
-        document.getElementById('xai-simple').classList.remove('hidden');
-        document.getElementById('xai-plain-text').innerHTML = getPlainExplanation(explanation);
-        
-        // Hide the technical section by default each time it's newly rendered
-        document.getElementById('xai-section').classList.add('hidden');
-
-        document.getElementById('xai-top-factor').textContent = explanation.top_factor;
-        document.getElementById('xai-base').textContent = explanation.base_value;
-        document.getElementById('xai-pred').textContent = explanation.prediction;
-
-        const maxImpact = Math.max(...explanation.contributions.map(c => Math.abs(c.shap_impact)));
-        const barsDiv = document.getElementById('xai-bars');
-        barsDiv.innerHTML = '';
-
-        explanation.contributions.slice(0, 6).forEach(c => {
-            const pct = maxImpact > 0 ? Math.round((Math.abs(c.shap_impact) / maxImpact) * 100) : 0;
-            const color = c.shap_impact > 0 ? 'bg-green-500' : 'bg-red-500';
-            const sign = c.shap_impact > 0 ? '+' : '';
-            barsDiv.innerHTML += `
-                <div class="flex items-center gap-2 text-xs">
-                    <span class="text-slate-300 w-40 truncate" title="${c.feature}">${c.feature}</span>
-                    <div class="flex-1 bg-slate-700 rounded h-4">
-                        <div class="${color} h-4 rounded" style="width:${pct}%"></div>
-                    </div>
-                    <span class="text-slate-300 w-20 text-right">${sign}${c.shap_impact} tC/ha</span>
-                </div>`;
-        });
-    }
+    function renderXAI(explanation) { /* no-op — Sundarbans RF model does not return SHAP */ }
 
     function renderCreditScore(cs) {
         if (!cs) return;
