@@ -74,6 +74,7 @@ class EstimateRequest(BaseModel):
     longitude: float
     area_hectares: float
     manual_ndvi: Optional[float] = None
+    typology_class: Optional[str] = "OpenCoast"
 
 class VerifyRequest(BaseModel):
     site_id: str
@@ -115,7 +116,7 @@ def estimate_carbon(req: EstimateRequest):
         bands["NDVI"] = req.manual_ndvi
         
     site_data = {
-        "typology_class": "OpenCoast", # Default assumption if unknown
+        "typology_class": req.typology_class or "OpenCoast",
         "latitude": req.latitude,
         "longitude": req.longitude,
         **bands
@@ -126,16 +127,14 @@ def estimate_carbon(req: EstimateRequest):
     if pred_res["status"] == "error":
         raise HTTPException(status_code=500, detail=pred_res["message"])
     
-    # 4. Adjust credits based on provided area vs density (tC/ha)
-    # Calibrate carbon density using dynamic NDVI scaling
+    # 4. Use predictor output to calculate total components
     ndvi_val = req.manual_ndvi if req.manual_ndvi is not None else bands.get("NDVI", 0.0)
-    tC_ha = 140.0 + (ndvi_val * 180.0)
+    tC_ha = pred_res["predicted_carbon_tC_ha"]
     
-    # Calculate components
     total_tC = tC_ha * req.area_hectares
-    agb_tC = total_tC * 0.28
-    soc_tC = total_tC * 0.72
-    total_credits = total_tC * 3.67
+    agb_tC = pred_res["aboveground_carbon_tC"] * req.area_hectares
+    soc_tC = pred_res["soil_organic_carbon_tC"] * req.area_hectares
+    total_credits = pred_res["credits_per_hectare"] * req.area_hectares
     
     return {
         "site_id": req.site_id,
@@ -150,7 +149,18 @@ def estimate_carbon(req: EstimateRequest):
         "soil_organic_carbon_tC": soc_tC,
         "total_carbon_stock_tC": total_tC,
         "total_credits_tCO2e": total_credits,
-        "predicted_credits": total_credits
+        "predicted_credits": total_credits,
+        "data_provenance": {
+            "REAL": ["scene_id", "date_acquired", "cloud_cover_percent"],
+            "SIMULATED": ["B2_blue", "B3_green", "B4_red", "B8_nir", "B11_swir", "NDVI"],
+            "MODEL_OUTPUT": [
+                "predicted_carbon_tC_ha", 
+                "aboveground_carbon_tC", 
+                "soil_organic_carbon_tC", 
+                "credits_per_hectare",
+                "Note: Model was trained on typological data, not site-specific field plots."
+            ]
+        }
     }
 
 @app.post("/api/verify-and-mint")

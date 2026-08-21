@@ -3,3 +3,9 @@ numpy
 scikit-learn
 matplotlib
 joblib
+pydantic
+fastapi
+uvicorn
+web3
+python-dotenv
+pystac-client

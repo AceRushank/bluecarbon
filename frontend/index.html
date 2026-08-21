@@ -99,6 +99,14 @@
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Longitude</label>
                         <input type="number" step="any" id="est-lon" value="86.8880" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Typology Class</label>
+                        <select id="est-typology" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
+                            <option value="OpenCoast">OpenCoast</option>
+                            <option value="Delta">Delta</option>
+                            <option value="Estuary">Estuary</option>
+                            <option value="Lagoon">Lagoon</option>
+                        </select>
                     </div>
                 </div>
                 <button id="btn-estimate" onclick="runEstimate()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-4 rounded shadow transition-colors">
@@ -110,17 +118,17 @@
                     <div class="flex items-center justify-between mb-3 border-b border-slate-700 pb-2">
                         <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase">Live ESA Sentinel-2 STAC Ingestion</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-y-2 text-sm text-slate-300 mb-4">
-                        <span class="text-slate-500">Scene ID:</span>
+                    <div class="grid grid-cols-2 gap-y-2 text-sm text-slate-300 mb-4 items-center">
+                        <span class="text-slate-500 flex items-center gap-1">Scene ID <span class="px-1 py-0.5 bg-blue-900/50 text-blue-300 text-[10px] rounded border border-blue-800" title="Real satellite metadata">REAL</span>:</span>
                         <span id="res-scene" class="monospace text-right"></span>
-                        <span class="text-slate-500">Cloud Cover:</span>
+                        <span class="text-slate-500 flex items-center gap-1">Cloud Cover <span class="px-1 py-0.5 bg-blue-900/50 text-blue-300 text-[10px] rounded border border-blue-800" title="Real satellite metadata">REAL</span>:</span>
                         <span id="res-clouds" class="monospace text-right"></span>
-                        <span class="text-slate-500">Dynamic NDVI:</span>
+                        <span class="text-slate-500 flex items-center gap-1">Dynamic NDVI <span class="px-1 py-0.5 bg-orange-900/50 text-orange-300 text-[10px] rounded border border-orange-800" title="Simulated for prototype">SIMULATED</span>:</span>
                         <span id="res-ndvi" class="monospace text-right font-semibold text-emerald-400"></span>
                     </div>
                     <div class="border-t border-slate-700 pt-3">
-                        <p class="text-xs font-bold text-blue-400 tracking-wider uppercase mb-2">Carbon Estimation Breakdown</p>
-                        <div class="grid grid-cols-2 gap-y-2 text-sm text-slate-300">
+                        <p class="text-xs font-bold text-blue-400 tracking-wider uppercase mb-2 flex items-center">Carbon Estimation Breakdown <span class="px-1 py-0.5 bg-purple-900/50 text-purple-300 text-[10px] rounded border border-purple-800 normal-case font-normal ml-2" title="Model prediction (trained on typological data, not site-specific plots)">MODEL OUTPUT</span></p>
+                        <div class="grid grid-cols-2 gap-y-2 text-sm text-slate-300 items-center">
                             <span class="text-slate-500">Total Density:</span>
                             <span id="res-density" class="monospace text-right"></span>
                             <span class="text-slate-500">Above-Ground (AGB):</span>
@@ -268,7 +276,8 @@
             site_id: document.getElementById('est-site-id').value,
             latitude: parseFloat(document.getElementById('est-lat').value),
             longitude: parseFloat(document.getElementById('est-lon').value),
-            area_hectares: parseFloat(document.getElementById('est-area').value)
+            area_hectares: parseFloat(document.getElementById('est-area').value),
+            typology_class: document.getElementById('est-typology').value
         };
 
         try {

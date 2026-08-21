@@ -38,18 +38,24 @@ python -m venv venv
 venv\Scripts\activate          # Windows
 # source venv/bin/activate     # macOS / Linux
 
-# 2. Install dependencies
+# 2. Install Python dependencies
 pip install -r requirements.txt
 
-# 3. Explore the data
-python explore.py
+# 3. Install Blockchain dependencies
+cd blockchain && npm install
 
-# 4. Train the model (creates models/carbon_model.pkl + outputs/)
-python train.py
+# 4. Start local Hardhat node (in one terminal)
+npx hardhat node
 
-# 5. Run the predictor sanity check
-python predictor.py
+# 5. Deploy contracts (in a second terminal)
+npx hardhat run scripts/deploy.js --network hardhat
+# Note: This generates blockchain/deployed_contracts.json, which is gitignored and must be regenerated locally.
+
+# 6. Run the FastAPI backend
+cd .. && uvicorn backend.app:app --reload --port 8000
 ```
+
+> **Note on backend/app.py Fallback Logic:** The backend contains fallback address logic and mock data responses. This exists so that `app.py` doesn't hard-fail if the smart contract deployment hasn't been run yet (e.g., if `deployed_contracts.json` is missing or the node isn't up).
 
 ---
 
@@ -80,5 +86,5 @@ See `outputs/evaluation_report.txt` for the full metrics.
 ## Dependencies
 
 ```
-pandas · numpy · scikit-learn · matplotlib · joblib
+pandas · numpy · scikit-learn · matplotlib · joblib · pydantic · fastapi · uvicorn · web3 · python-dotenv · pystac-client
 ```
