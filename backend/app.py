@@ -256,10 +256,12 @@ def estimate_carbon(req: EstimateRequest):
     return {
         "site_id":                 req.site_id,
         "NDVI":                    ndvi_val,
+        "ndvi_source":             stac_res.get("ndvi_source", "MODELLED"),
         "satellite_meta": {
             "scene_id":            stac_res["metadata"].get("scene_id", "N/A"),
             "cloud_cover_percent": cloud_cover,
-            "NDVI":                ndvi_val
+            "NDVI":                ndvi_val,
+            "ndvi_source":         stac_res.get("ndvi_source", "MODELLED")
         },
         "carbon_density_tC_ha":    tC_ha,
         "agb_density_tC_ha":       agb_density,

@@ -120,7 +120,7 @@
                         <span id="res-scene" class="monospace text-right"></span>
                         <span class="text-slate-500 flex items-center gap-1">Cloud Cover <span class="px-1 py-0.5 bg-blue-900/50 text-blue-300 text-[10px] rounded border border-blue-800" title="Real satellite metadata">REAL</span>:</span>
                         <span id="res-clouds" class="monospace text-right"></span>
-                        <span class="text-slate-500 flex items-center gap-1">Dynamic NDVI <span class="px-1 py-0.5 bg-slate-700 text-slate-300 text-[10px] rounded border border-slate-600" title="NDVI derived from satellite scene metadata. Direct pixel extraction is the production path.">MODELLED</span>:</span>
+                        <span class="text-slate-500 flex items-center gap-1">Dynamic NDVI <span id="res-ndvi-badge" class="px-1 py-0.5 bg-slate-700 text-slate-300 text-[10px] rounded border border-slate-600" title="NDVI source">MODELLED</span>:</span>
                         <span id="res-ndvi" class="monospace text-right font-semibold text-emerald-400"></span>
                     </div>
                     <div class="border-t border-slate-700 pt-3">
@@ -351,6 +351,20 @@
                 
                 const ndviValue = data.NDVI !== undefined ? data.NDVI : (data.satellite_meta?.NDVI !== undefined ? data.satellite_meta.NDVI : null);
                 document.getElementById('res-ndvi').innerText = ndviValue !== null ? ndviValue.toFixed(4) : "N/A";
+                
+                const ndviSource = data.ndvi_source || data.satellite_meta?.ndvi_source || "MODELLED";
+                const ndviBadge = document.getElementById('res-ndvi-badge');
+                if (ndviBadge) {
+                    if (ndviSource === "REAL") {
+                        ndviBadge.innerText = "REAL";
+                        ndviBadge.className = "px-1 py-0.5 bg-emerald-900/50 text-emerald-300 text-[10px] rounded border border-emerald-800";
+                        ndviBadge.title = "Extracted from real Sentinel-2 S3 COG pixels";
+                    } else {
+                        ndviBadge.innerText = "MODELLED";
+                        ndviBadge.className = "px-1 py-0.5 bg-slate-700 text-slate-300 text-[10px] rounded border border-slate-600";
+                        ndviBadge.title = "NDVI simulated from scene metadata fallback";
+                    }
+                }
                 
                 document.getElementById('res-density').innerText = `${Number(data.carbon_density_tC_ha).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} tC/ha`;
                 document.getElementById('res-agb').innerText = `${Number(data.aboveground_biomass_tC).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} tC`;
