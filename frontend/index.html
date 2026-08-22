@@ -405,6 +405,7 @@
         // Update note
         document.getElementById('map-region-note').innerText = cfg.note;
         validateLiveInputs();
+        setTimeout(() => map.invalidateSize(), 200);
     }
 
     // Init default region
@@ -628,42 +629,30 @@
         const marketEl = document.getElementById('score-market');
         if (marketEl) marketEl.textContent = cs.market_tier;
 
+        const maxMap = {
+            data_provenance: 15, location_verified: 20, ndvi_health: 20,
+            carbon_density_score: 15, restoration_potential: 15, scene_quality: 10, model_confidence: 5
+        };
+        const labelMap = {
+            data_provenance: 'Data Provenance (Ground-Truth)',
+            location_verified: 'GMW Location Verified',
+            ndvi_health: 'NDVI Vegetation Health',
+            carbon_density_score: 'Carbon Density Score',
+            restoration_potential: 'Restoration Potential',
+            scene_quality: 'Scene Quality',
+            model_confidence: 'Model Confidence'
+        };
+
         const breakdown = document.getElementById('score-breakdown');
         if (breakdown && cs.breakdown) {
             breakdown.innerHTML = Object.entries(cs.breakdown).map(([k, v]) => `
                 <tr class="border-b border-slate-800/60">
-                    <td class="py-1 capitalize text-slate-300">${k.replace(/_/g, ' ')}</td>
+                    <td class="py-1 text-slate-300 font-sans">${labelMap[k] || k}</td>
                     <td class="py-1 text-right text-emerald-400 font-bold">${v}</td>
-                    <td class="py-1 text-right text-slate-500">20</td>
+                    <td class="py-1 text-right text-slate-500">${maxMap[k] || '—'}</td>
                 </tr>
             `).join('');
         }
-    }
-
-        document.getElementById('score-market').textContent = cs.market_tier;
-
-        const maxMap = {
-            ndvi_health: 25, carbon_density_score: 20, scene_quality: 10,
-            location_verified: 20, restoration_potential: 15, model_confidence: 10
-        };
-        const labelMap = {
-            ndvi_health: 'NDVI Vegetation Health',
-            carbon_density_score: 'Carbon Density',
-            scene_quality: 'Scene Quality',
-            location_verified: 'GMW Location Verified',
-            restoration_potential: 'Restoration Potential',
-            model_confidence: 'Model Confidence'
-        };
-
-        const tbody = document.getElementById('score-breakdown');
-        tbody.innerHTML = '';
-        Object.entries(cs.breakdown).forEach(([key, val]) => {
-            tbody.innerHTML += `<tr>
-                <td class="py-1">${labelMap[key] || key}</td>
-                <td class="text-right py-1 text-white font-medium">${val}</td>
-                <td class="text-right py-1">${maxMap[key] || '—'}</td>
-            </tr>`;
-        });
     }
 
     function verifyAndMint() { /* no-op — replaced by government approval flow */ }
