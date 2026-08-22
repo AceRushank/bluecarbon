@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Government Portal — Blue Carbon MRV</title>
+    <title>Government Portal — BlueChain MRV</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
         .monospace { font-family: 'JetBrains Mono', monospace; }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen">
+<body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-emerald-500 selection:text-slate-950">
 
     <script>
         // Auth Guard
@@ -23,24 +23,24 @@
     </script>
 
     <!-- Header / Navbar -->
-    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+    <header class="bg-slate-900/90 border-b border-emerald-500/30 sticky top-0 z-50 backdrop-blur-md">
         <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold text-lg">
+                <div class="w-10 h-10 rounded-xl bg-emerald-950/80 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-lg shadow-inner">
                     🏛️
                 </div>
                 <div>
-                    <h1 class="text-lg font-bold text-white tracking-tight">Government Regulatory Portal</h1>
-                    <p class="text-xs text-slate-400">Sundarbans Carbon Credit Verification & Issuance</p>
+                    <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 tracking-tight">BlueChain Government Portal</h1>
+                    <p class="text-xs text-slate-400">Multi-Region Carbon Credit Verification & On-Chain Issuance</p>
                 </div>
             </div>
             
             <div class="flex items-center space-x-4">
                 <div class="text-right text-xs">
                     <span class="text-slate-400">Logged in as:</span>
-                    <span id="user-display" class="block font-semibold text-purple-300 monospace">admin (Regulator)</span>
+                    <span id="user-display" class="block font-semibold text-emerald-300 monospace">admin (Regulator)</span>
                 </div>
-                <button onclick="logout()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded-lg border border-slate-600 transition-colors">
+                <button onclick="logout()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 px-3.5 rounded-xl border border-slate-700 transition-all hover:border-emerald-500/40">
                     Sign Out
                 </button>
             </div>
@@ -51,31 +51,31 @@
 
         <!-- Stats Overview -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+            <div class="bg-slate-900/90 border border-emerald-500/20 rounded-2xl p-5 shadow-xl backdrop-blur-md">
                 <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Role & Permissions</span>
-                <div class="text-xl font-bold text-purple-400 mt-1">Ministry Regulator</div>
+                <div class="text-xl font-extrabold text-emerald-400 mt-1">Ministry Regulator</div>
                 <p class="text-xs text-slate-400 mt-1">Authorized to issue on-chain $BCO2 tokens</p>
             </div>
-            <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+            <div class="bg-slate-900/90 border border-emerald-500/20 rounded-2xl p-5 shadow-xl backdrop-blur-md">
                 <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Target Network</span>
-                <div class="text-xl font-bold text-emerald-400 mt-1">Ethereum Sepolia</div>
+                <div class="text-xl font-extrabold text-teal-300 mt-1">Ethereum Sepolia</div>
                 <p class="text-xs text-slate-400 mt-1">Smart Contract Oracle Verification</p>
             </div>
-            <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+            <div class="bg-slate-900/90 border border-emerald-500/20 rounded-2xl p-5 shadow-xl backdrop-blur-md">
                 <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">ML Verification Standard</span>
-                <div class="text-xl font-bold text-blue-400 mt-1">Sundarbans RF Model</div>
-                <p class="text-xs text-slate-400 mt-1">76 Ground-truth Field Plots</p>
+                <div class="text-xl font-extrabold text-cyan-400 mt-1">BlueChain Multi-Region RF</div>
+                <p class="text-xs text-slate-400 mt-1">Sundarbans & Andaman Island Models</p>
             </div>
         </div>
 
         <!-- Pending Validations Table -->
-        <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl space-y-4">
+        <div class="bg-slate-900/90 border border-emerald-500/20 rounded-2xl p-6 shadow-2xl space-y-4 backdrop-blur-md">
             <div class="flex justify-between items-center">
                 <div>
-                    <h2 class="text-xl font-semibold text-white">Pending Project Approvals</h2>
+                    <h2 class="text-xl font-bold text-white">Pending Project Approvals</h2>
                     <p class="text-xs text-slate-400">Review company submissions and broadcast verified credit minting transactions</p>
                 </div>
-                <button onclick="loadPendingValidations()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-3 rounded-lg shadow transition-colors flex items-center gap-1">
+                <button onclick="loadPendingValidations()" class="text-xs bg-slate-950 hover:bg-slate-800 text-emerald-300 font-medium py-2 px-3.5 rounded-xl border border-emerald-800/60 shadow transition-colors flex items-center gap-1.5">
                     <span>🔄</span> Refresh Submissions
                 </button>
             </div>

@@ -145,7 +145,7 @@ USERS = {
 SESSIONS = {}  # token -> {"username": str, "role": str}
 
 # Initialize FastAPI app
-app = FastAPI(title="Blue Carbon MRV API")
+app = FastAPI(title="BlueChain MRV API")
 
 # Mount templates
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), '../frontend'))
