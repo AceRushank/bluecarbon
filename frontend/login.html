@@ -17,8 +17,10 @@
         
         <!-- Header -->
         <div class="text-center space-y-2">
-            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 mb-2 text-2xl shadow-inner">
-                🌱
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 mb-2 shadow-inner">
+                <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                </svg>
             </div>
             <h1 class="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
                 BlueChain Protocol
@@ -28,8 +30,11 @@
 
         <!-- Demo Accounts Info -->
         <div class="bg-slate-950/80 border border-emerald-900/60 rounded-2xl p-4 text-xs space-y-2 shadow-inner">
-            <div class="text-emerald-300 font-semibold flex items-center gap-1.5">
-                <span>🔑</span> <span>Demo Credentials</span>
+            <div class="text-emerald-300 font-semibold flex items-center gap-2">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                </svg>
+                <span>Demo Credentials</span>
             </div>
             <div class="grid grid-cols-2 gap-2 text-slate-400 monospace">
                 <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
@@ -63,6 +68,9 @@
 
             <button type="submit" id="btn-submit"
                     class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 px-4 rounded-xl shadow-xl transition-all transform active:scale-[0.99] flex justify-center items-center gap-2 text-sm">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                </svg>
                 <span>Sign In</span>
             </button>
         </form>
