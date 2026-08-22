@@ -61,7 +61,7 @@
     <!-- Header -->
     <header class="flex flex-col md:flex-row justify-between items-center bg-slate-900/90 p-6 rounded-2xl border border-emerald-500/30 shadow-2xl backdrop-blur-md">
         <div>
-            <h1 class="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
+            <h1 class="text-3xl font-extrabold text-emerald-400 tracking-tight">
                 BlueChain MRV & Registry
             </h1>
             <p class="text-slate-400 mt-1 text-xs sm:text-sm">Multi-Region Mangrove Carbon Credits · Satellite ML · Blockchain (Sepolia)</p>
@@ -146,7 +146,7 @@
                     <span id="live-gmw-region-tag" class="px-2 py-0.5 bg-emerald-900/80 text-emerald-200 rounded-lg text-[10px] uppercase font-bold tracking-wider border border-emerald-700/50">Sundarbans</span>
                 </div>
 
-                <button id="btn-estimate" onclick="runEstimate()" class="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 px-4 rounded-xl shadow-xl transition-all transform active:scale-[0.99] text-sm flex items-center justify-center gap-2">
+                <button id="btn-estimate" onclick="runEstimate()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded-xl shadow-xl transition-all transform active:scale-[0.99] text-sm flex items-center justify-center gap-2">
                     <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                     <span>Query STAC & Run BlueChain ML Model</span>
                 </button>
@@ -169,7 +169,7 @@
                 <!-- Highlight Stat Cards -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <!-- Total Mintable BCO2 -->
-                    <div class="bg-gradient-to-br from-emerald-950/90 via-slate-900 to-slate-950 border border-emerald-500/40 rounded-2xl p-4 flex flex-col justify-between shadow-xl">
+                    <div class="bg-slate-950 border border-emerald-500/40 rounded-2xl p-4 flex flex-col justify-between shadow-xl">
                         <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Total Mintable BCO2</span>
                         <div class="mt-2 flex items-baseline justify-between">
                             <span id="res-credits" class="text-3xl font-black text-emerald-300 font-mono">0</span>
@@ -178,7 +178,7 @@
                     </div>
 
                     <!-- Carbon Density -->
-                    <div class="bg-gradient-to-br from-teal-950/90 via-slate-900 to-slate-950 border border-teal-500/40 rounded-2xl p-4 flex flex-col justify-between shadow-xl">
+                    <div class="bg-slate-950 border border-teal-500/40 rounded-2xl p-4 flex flex-col justify-between shadow-xl">
                         <span class="text-xs font-bold text-teal-400 uppercase tracking-wider">Carbon Density</span>
                         <div class="mt-2 flex items-baseline justify-between">
                             <span id="res-density" class="text-3xl font-black text-teal-300 font-mono">0</span>

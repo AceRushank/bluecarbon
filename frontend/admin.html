@@ -32,7 +32,7 @@
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 tracking-tight">BlueChain Government Portal</h1>
+                    <h1 class="text-lg font-bold text-emerald-400 tracking-tight">BlueChain Government Portal</h1>
                     <p class="text-xs text-slate-400">Multi-Region Carbon Credit Verification & On-Chain Issuance</p>
                 </div>
             </div>
@@ -142,7 +142,7 @@
 
                     const actionButton = isApproved
                         ? `<div class="text-right text-xs text-slate-400"><span class="text-slate-500 block">TX Hash:</span><span class="monospace text-emerald-400 text-[11px]">${item.tx_hash ? item.tx_hash.substring(0, 14) + '...' : 'Confirmed'}</span></div>`
-                        : `<button onclick="approveSite('${item.site_id}', this)" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-sans text-xs font-bold py-2 px-3.5 rounded-xl shadow transition-all transform active:scale-[0.99] flex items-center gap-1.5 ml-auto">
+                        : `<button onclick="approveSite('${item.site_id}', this)" class="bg-emerald-600 hover:bg-emerald-500 text-white font-sans text-xs font-bold py-2 px-3.5 rounded-xl shadow transition-all transform active:scale-[0.99] flex items-center gap-1.5 ml-auto">
                             <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             <span>Approve & Issue Credits</span>
                            </button>`;
