@@ -570,6 +570,7 @@ def get_registry_projects():
             site_ids = registry_contract.functions.getAllSiteIds().call()
             for sid in site_ids:
                 p = registry_contract.functions.getProject(sid).call()
+                data_hash_val = "0x" + p[8].hex() if isinstance(p[8], bytes) else str(p[8])
                 projects.append({
                     "site_id": p[0],
                     "owner": p[1],
@@ -579,7 +580,8 @@ def get_registry_projects():
                     "is_verified": p[5],
                     "carbon_tons": p[6],
                     "credits_minted": str(w3.from_wei(p[7], 'ether')),
-                    "ipfs_proof_hash": p[8],
+                    "data_hash": data_hash_val,
+                    "ipfs_proof_hash": data_hash_val,
                     "timestamp": p[9]
                 })
         except Exception as e:
