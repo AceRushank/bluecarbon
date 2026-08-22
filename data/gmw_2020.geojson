@@ -48,6 +48,30 @@
           [69.5, 22.2]
         ]]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Baratang & Middle Andaman Mangroves"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [92.65, 12.05], [93.05, 12.05],
+          [93.05, 13.15], [92.65, 13.15],
+          [92.65, 12.05]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "South Andaman & Havelock Mangroves"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [92.55, 11.50], [93.05, 11.50],
+          [93.05, 12.05], [92.55, 12.05],
+          [92.55, 11.50]
+        ]]
+      }
     }
   ]
 }

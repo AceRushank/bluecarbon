@@ -40,6 +40,13 @@
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+<script>
+    const auth_token = localStorage.getItem('auth_token');
+    const auth_role = localStorage.getItem('auth_role');
+    if (!auth_token) {
+        window.location.href = '/login.html';
+    }
+</script>
 
 <div class="bg-blue-900 border-b border-blue-600 text-blue-200 text-xs text-center py-1 px-4 mb-4 rounded">
   🌐 Running on Ethereum Sepolia public testnet. All transactions are real and independently verifiable on Etherscan.
@@ -54,40 +61,53 @@
             </h1>
             <p class="text-slate-400 mt-1">Sundarbans Mangrove Carbon Credits · Satellite ML · Blockchain (Sepolia)</p>
         </div>
-        <div id="health-status" class="mt-4 md:mt-0 flex items-center space-x-2 text-sm font-medium px-4 py-2 rounded-full bg-slate-900 border border-slate-700">
-            <span class="flex h-3 w-3 relative">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-            </span>
-            <span id="health-text" class="text-slate-300">Connecting to Node...</span>
+        <div class="mt-4 md:mt-0 flex items-center space-x-3">
+            <div id="health-status" class="flex items-center space-x-2 text-xs font-medium px-3 py-1.5 rounded-full bg-slate-900 border border-slate-700">
+                <span class="flex h-2.5 w-2.5 relative">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span id="health-text" class="text-slate-300">Connecting...</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-right">
+                <span class="text-slate-400 block text-[10px]">Logged in as:</span>
+                <span id="user-display-name" class="font-bold text-blue-400 monospace">company</span>
+            </div>
+            <button onclick="logout()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 py-2 px-3 rounded-lg border border-slate-600 transition-colors">
+                Sign Out
+            </button>
         </div>
     </header>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Map Panel -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg flex flex-col space-y-4">
-            <div class="flex justify-between items-center">
-                <h2 class="text-xl font-semibold text-slate-100">📍 Sundarbans Region — Click to Select Site</h2>
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <h2 id="map-header-title" class="text-xl font-semibold text-slate-100">📍 Region — Click to Select Site</h2>
+                <div class="flex items-center space-x-2">
+                    <label class="text-xs text-slate-400 font-medium">Dataset:</label>
+                    <select id="region-selector" onchange="switchRegion(this.value)" class="bg-slate-900 border border-emerald-500/50 text-emerald-400 font-bold text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-400 shadow-sm cursor-pointer">
+                        <option value="sundarbans">🌿 Sundarbans Delta (West Bengal)</option>
+                        <option value="andaman">🏝️ Andaman & Nicobar Islands</option>
+                    </select>
+                </div>
             </div>
             
             <div id="map" class="w-full border border-slate-600"></div>
             
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <button onclick="flyToZone('SUND-CORE', 21.9497, 89.1833)" class="text-xs bg-slate-700 hover:bg-emerald-800 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">🌿 Core Zone</button>
-                <button onclick="flyToZone('SUND-WEST', 21.8, 88.6)" class="text-xs bg-slate-700 hover:bg-emerald-800 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">🌿 West Delta</button>
-                <button onclick="flyToZone('SUND-EAST', 22.1, 89.5)" class="text-xs bg-slate-700 hover:bg-emerald-800 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">🌿 East Delta</button>
-                <button onclick="flyToZone('SUND-NORTH', 22.5, 88.9)" class="text-xs bg-slate-700 hover:bg-emerald-800 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">🌿 North Zone</button>
+            <div id="presets-container" class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <!-- Dynamically populated by JS -->
             </div>
-            <p class="text-xs text-slate-400 italic">Model trained on 76 Sundarbans field plots (2023). Click anywhere in the delta to set coordinates.</p>
+            <p id="map-region-note" class="text-xs text-slate-400 italic">Model trained on Sundarbans ground-truth plots (2023). Click anywhere to set coordinates.</p>
         </div>
 
         <!-- ML & Minting Panel -->
         <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-lg flex flex-col space-y-6">
             
-            <!-- Step 1: Estimation -->
+            <!-- Tier 1: PRIMARY INPUTS & CONTROLS -->
             <div>
                 <h2 class="text-xl font-semibold text-slate-100 mb-4">1. STAC Ingestion & ML Inference</h2>
-                <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-2 gap-3 mb-3">
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Site ID</label>
                         <input type="text" id="est-site-id" value="SUND-LIVE-001" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
@@ -97,78 +117,132 @@
                         <input type="number" id="est-area" value="100" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
                     </div>
                     <div>
-                    <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Latitude</label>
-                        <input type="number" step="any" id="est-lat" value="21.9497" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
+                        <input type="number" step="any" id="est-lat" value="21.9497" onchange="validateLiveInputs()" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Longitude</label>
-                        <input type="number" step="any" id="est-lon" value="89.1833" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
+                        <input type="number" step="any" id="est-lon" value="89.1833" onchange="validateLiveInputs()" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 transition-colors">
                     </div>
                 </div>
-                <button id="btn-estimate" onclick="runEstimate()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2 px-4 rounded shadow transition-colors">
+
+                <!-- Live GMW Boundary Validation Badge (ALWAYS VISIBLE - Fast Trust Signal) -->
+                <div id="live-gmw-badge" class="mb-4 text-xs flex items-center justify-between p-2.5 bg-emerald-950/40 border border-emerald-800 text-emerald-300 rounded-lg shadow-inner">
+                    <span class="flex items-center gap-1.5 font-semibold">
+                        <span class="text-base">✅</span> <span id="live-gmw-text">GMW Verified — Inside Mangrove Zone</span>
+                    </span>
+                    <span id="live-gmw-region-tag" class="px-2 py-0.5 bg-emerald-900 text-emerald-200 rounded text-[10px] uppercase font-bold tracking-wider">Sundarbans</span>
+                </div>
+
+                <button id="btn-estimate" onclick="runEstimate()" class="w-full bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white font-bold py-2.5 px-4 rounded-lg shadow-lg transition-all transform active:scale-[0.99] text-sm">
                     Query STAC & Run ML Model
                 </button>
+                <div id="estimate-error" class="hidden mt-3 p-3 bg-red-900/30 border border-red-800 text-red-400 text-sm rounded"></div>
+            </div>
 
-                <!-- Estimate Results Box -->
-                <div id="estimate-result" class="hidden mt-4 bg-slate-900 border border-slate-700 rounded-lg p-4">
-                    <div class="flex items-center justify-between mb-3 border-b border-slate-700 pb-2">
-                        <span class="text-xs font-bold text-emerald-400 tracking-wider uppercase">Live ESA Sentinel-2 STAC Ingestion</span>
+            <!-- Tier 2: PROMINENT RESULT STATS (Always visible after query) -->
+            <div id="estimate-result" class="hidden space-y-4">
+                <!-- Andaman Proof-of-Concept Disclosure Banner -->
+                <div id="andaman-disclosure-banner" class="hidden p-3.5 bg-amber-950/70 border border-amber-500/80 rounded-xl text-amber-200 text-xs shadow-lg space-y-1">
+                    <div class="font-bold text-amber-300 flex items-center gap-1.5 text-sm">
+                        <span>⚠️</span> <span>Proof-of-Concept Model Notice — Andaman & Nicobar</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-y-2 text-sm text-slate-300 mb-4 items-center">
-                        <span class="text-slate-500 flex items-center gap-1">Scene ID <span class="px-1 py-0.5 bg-blue-900/50 text-blue-300 text-[10px] rounded border border-blue-800" title="Real satellite metadata">REAL</span>:</span>
-                        <span id="res-scene" class="monospace text-right"></span>
-                        <span class="text-slate-500 flex items-center gap-1">Cloud Cover <span class="px-1 py-0.5 bg-blue-900/50 text-blue-300 text-[10px] rounded border border-blue-800" title="Real satellite metadata">REAL</span>:</span>
-                        <span id="res-clouds" class="monospace text-right"></span>
-                        <span class="text-slate-500 flex items-center gap-1">Dynamic NDVI <span id="res-ndvi-badge" class="px-1 py-0.5 bg-slate-700 text-slate-300 text-[10px] rounded border border-slate-600" title="NDVI source">MODELLED</span>:</span>
-                        <span id="res-ndvi" class="monospace text-right font-semibold text-emerald-400"></span>
-                    </div>
-                    <div class="border-t border-slate-700 pt-3">
-                        <p class="text-xs font-bold text-blue-400 tracking-wider uppercase mb-2 flex items-center">Carbon Estimation — Sundarbans RF Model <span class="px-1 py-0.5 bg-purple-900/50 text-purple-300 text-[10px] rounded border border-purple-800 normal-case font-normal ml-2" title="RandomForestRegressor trained on 76 Sundarbans ground-truth plots (2023). Features: NDVI, lat, lon.">RF MODEL</span></p>
-                        <div class="grid grid-cols-2 gap-y-2 text-sm text-slate-300 items-center">
-                            <span class="text-slate-500">Total Density:</span>
-                            <span id="res-density" class="monospace text-right"></span>
-                            <span class="text-slate-500">Above-Ground (AGB):</span>
-                            <span id="res-agb" class="monospace text-right"></span>
-                            <span class="text-slate-500">Soil Organic (SOC):</span>
-                            <span id="res-soc" class="monospace text-right"></span>
+                    <p class="leading-relaxed">
+                        Andaman model uses satellite-index allometric estimation (125 + 80×NDVI + 15×EVI), not field-measured ground truth. Treat as a proof-of-concept extension pending real field validation.
+                    </p>
+                </div>
+
+                <!-- Highlight Stat Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Total Mintable BCO2 -->
+                    <div class="bg-gradient-to-br from-blue-950/80 to-slate-900 border border-blue-600/50 rounded-xl p-4 flex flex-col justify-between shadow-lg">
+                        <span class="text-xs font-bold text-blue-300 uppercase tracking-wider">Total Mintable Credits</span>
+                        <div class="mt-2 flex items-baseline justify-between">
+                            <span id="res-credits" class="text-3xl font-extrabold text-blue-400 font-mono">0</span>
+                            <span class="text-xs font-bold text-blue-300">tCO2e</span>
                         </div>
                     </div>
-                    <div class="mt-4 p-3 bg-blue-900/30 border border-blue-800 rounded flex justify-between items-center">
-                        <span class="text-sm font-semibold text-blue-200">Total Mintable BCO2:</span>
-                        <span id="res-credits" class="text-xl font-bold text-blue-400">0</span>
+
+                    <!-- Carbon Density -->
+                    <div class="bg-gradient-to-br from-emerald-950/80 to-slate-900 border border-emerald-600/50 rounded-xl p-4 flex flex-col justify-between shadow-lg">
+                        <span class="text-xs font-bold text-emerald-300 uppercase tracking-wider">Carbon Density</span>
+                        <div class="mt-2 flex items-baseline justify-between">
+                            <span id="res-density" class="text-3xl font-extrabold text-emerald-400 font-mono">0</span>
+                            <span class="text-xs font-bold text-emerald-300">tC/ha</span>
+                        </div>
                     </div>
-                    <!-- GMW Validation Badge -->
-                    <div id="gmw-badge" class="hidden mt-3"></div>
-                </div>
-                    <div id="estimate-error" class="hidden mt-4 p-3 bg-red-900/30 border border-red-800 text-red-400 text-sm rounded"></div>
-                    <div id="typology-override-notice" class="hidden mt-2 text-yellow-400 text-xs italic"></div>
                 </div>
 
-            <!-- Credit Quality Score Card -->
-            <div id="score-card" class="hidden mt-4 bg-slate-800 border border-slate-700 rounded-lg p-4">
-                <h3 class="text-white font-semibold mb-3">🏅 Credit Quality Score</h3>
-                <div class="flex items-center gap-4 mb-3">
-                    <div id="score-grade" class="text-4xl font-bold"></div>
-                    <div>
-                        <div id="score-total" class="text-2xl text-white"></div>
-                        <div class="text-slate-400 text-xs">out of 100</div>
+                <!-- Prominent Credit Score Banner -->
+                <div id="score-banner" class="bg-slate-900 border border-slate-700 rounded-xl p-4 flex items-center justify-between shadow-md">
+                    <div class="flex items-center space-x-3">
+                        <div id="score-grade" class="text-4xl font-extrabold">--</div>
+                        <div>
+                            <div class="flex items-baseline space-x-1">
+                                <span id="score-total" class="text-xl font-bold text-white">--</span>
+                                <span class="text-slate-500 text-xs">/ 100</span>
+                            </div>
+                            <div id="score-market" class="text-xs text-slate-300 mt-0.5"></div>
+                        </div>
+                    </div>
+                    <div id="gmw-badge" class="hidden"></div>
+                </div>
+
+                <!-- Tier 3: COLLAPSIBLE TECHNICAL DETAILS & METADATA -->
+                <div class="border border-slate-700/80 rounded-xl bg-slate-900/60 overflow-hidden">
+                    <button onclick="toggleTechnicalDetails()" class="w-full px-4 py-3 bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs font-bold flex justify-between items-center transition-colors">
+                        <span class="flex items-center gap-2">
+                            <span>⚙️</span> <span>Technical Details & Satellite Metadata</span>
+                        </span>
+                        <span id="tech-details-arrow" class="text-slate-400 transition-transform">▶ Show details</span>
+                    </button>
+
+                    <div id="tech-details-body" class="hidden p-4 space-y-4 border-t border-slate-800 text-xs">
+                        <!-- Satellite Metadata -->
+                        <div>
+                            <h4 class="text-emerald-400 font-bold uppercase tracking-wider mb-2">Live Sentinel-2 STAC Metadata</h4>
+                            <div class="grid grid-cols-2 gap-y-2 text-slate-300 font-mono bg-slate-950/60 p-3 rounded border border-slate-800">
+                                <span class="text-slate-500">Scene ID:</span>
+                                <span id="res-scene" class="text-right truncate"></span>
+                                <span class="text-slate-500">Cloud Cover:</span>
+                                <span id="res-clouds" class="text-right"></span>
+                                <span class="text-slate-500">NDVI:</span>
+                                <span id="res-ndvi" class="text-right font-bold text-emerald-400"></span>
+                            </div>
+                        </div>
+
+                        <!-- Biomass Breakdown -->
+                        <div>
+                            <h4 class="text-blue-400 font-bold uppercase tracking-wider mb-2">Biomass Partitioning (AGB / SOC)</h4>
+                            <div class="grid grid-cols-2 gap-y-2 text-slate-300 font-mono bg-slate-950/60 p-3 rounded border border-slate-800">
+                                <span class="text-slate-500">Above-Ground (AGB 28%):</span>
+                                <span id="res-agb" class="text-right"></span>
+                                <span class="text-slate-500">Soil Organic (SOC 72%):</span>
+                                <span id="res-soc" class="text-right"></span>
+                            </div>
+                        </div>
+
+                        <!-- Model Info Note -->
+                        <div id="model-info-note" class="p-3 bg-slate-950/80 border border-slate-800 rounded text-slate-400">
+                            <span class="text-emerald-400 font-semibold">🌱 Active Model:</span> <span id="model-info-text">RandomForestRegressor</span>
+                        </div>
+
+                        <!-- Credit Score Component Breakdown -->
+                        <div>
+                            <h4 class="text-slate-300 font-bold uppercase tracking-wider mb-2">Score Breakdown</h4>
+                            <table class="w-full text-slate-400 font-mono">
+                                <thead>
+                                    <tr class="border-b border-slate-800 text-slate-500">
+                                        <th class="text-left py-1">Metric</th>
+                                        <th class="text-right py-1">Points</th>
+                                        <th class="text-right py-1">Max</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="score-breakdown"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-                <div class="w-full bg-slate-700 rounded h-3 mb-3">
-                    <div id="score-bar" class="h-3 rounded transition-all duration-500" style="width:0%"></div>
-                </div>
-                <div id="score-market" class="text-sm text-slate-300 mb-3"></div>
-                <table class="w-full text-xs text-slate-400">
-                    <thead>
-                        <tr>
-                            <th class="text-left py-1">Component</th>
-                            <th class="text-right py-1">Score</th>
-                            <th class="text-right py-1">Max</th>
-                        </tr>
-                    </thead>
-                    <tbody id="score-breakdown"></tbody>
-                </table>
             </div>
 
             <!-- Model Info Note -->
@@ -178,34 +252,28 @@
 
             <hr class="border-slate-700">
 
-            <!-- Step 2: Minting -->
+            <!-- Step 2: Regulatory Approval & Status -->
             <div>
-                <h2 class="text-xl font-semibold text-slate-100 mb-4">2. Blockchain Verification & Minting</h2>
-                <div class="grid grid-cols-1 gap-4 mb-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Predicted Credits (tCO2e)</label>
-                        <input type="number" id="mint-credits" readonly placeholder="Run estimate first" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm text-slate-400 cursor-not-allowed">
+                <h2 class="text-xl font-semibold text-slate-100 mb-4">2. Regulatory Approval Status</h2>
+                
+                <div id="approval-status-box" class="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-4">
+                    <div class="flex items-start gap-3">
+                        <div id="status-icon" class="text-2xl">⏳</div>
+                        <div>
+                            <h3 id="approval-title" class="font-bold text-yellow-400 text-base">Pending Government Approval</h3>
+                            <p id="approval-desc" class="text-xs text-slate-400 mt-1">Run an estimation above to submit your site. The Ministry Regulator will review your project parameters on the government portal before issuing on-chain credits.</p>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Project Owner Wallet Address</label>
-                        <input type="text" id="mint-owner" value="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500 monospace">
-                    </div>
-                </div>
-                <button id="btn-mint" onclick="verifyAndMint()" disabled class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium py-2 px-4 rounded shadow transition-colors">
-                    Sign & Broadcast TX
-                </button>
 
-                <!-- Mint Results Box -->
-                <div id="mint-result" class="hidden mt-4 bg-slate-900 border border-slate-700 rounded-lg p-4">
-                    <div class="flex items-center space-x-2 mb-2">
-                        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        <span class="text-sm font-bold text-emerald-400">Transaction Confirmed</span>
+                    <div id="approval-details" class="hidden text-xs text-slate-300 bg-slate-800/70 p-3 rounded-lg border border-slate-700 space-y-1.5 monospace break-all">
+                        <p><span class="text-slate-500">Site ID:</span> <span id="status-site-id" class="text-white font-semibold"></span></p>
+                        <p><span class="text-slate-500">TX Hash:</span> <span id="status-tx-hash" class="text-emerald-400"></span></p>
                     </div>
-                    <div class="text-xs text-slate-400 space-y-1 mt-3 break-all">
-                        <p><span class="text-slate-500">TX Hash:</span> <span id="mint-tx" class="monospace text-slate-300"></span></p>
-                    </div>
+
+                    <button id="btn-check-status" onclick="checkApprovalStatus()" disabled class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-medium py-2 px-4 rounded-lg shadow transition-colors flex justify-center items-center gap-2 text-sm">
+                        <span>🔍</span> <span>Check Approval Status</span>
+                    </button>
                 </div>
-                <div id="mint-error" class="hidden mt-4 p-3 bg-red-900/30 border border-red-800 text-red-400 text-sm rounded"></div>
             </div>
         </div>
     </div>
@@ -244,6 +312,7 @@
     const API_BASE = window.location.origin;
 
     // --- LEAFLET MAP SETUP ---
+    let currentRegion = 'sundarbans';
     const map = L.map('map').setView([21.9497, 89.1833], 9);
     
     // OpenStreetMap Base Layer
@@ -253,19 +322,122 @@
         crossOrigin: true
     }).addTo(map);
 
-    // Add a bounding box outline for the Sundarbans region
-    L.rectangle([[21.4, 88.0], [22.9, 89.9]], {
-        color: '#34d399', weight: 1.5, fill: true,
-        fillColor: '#34d399', fillOpacity: 0.05,
-        dashArray: '6 4'
-    }).addTo(map).bindTooltip('Sundarbans Delta (Model Training Region)', {permanent: false, direction: 'top'});
-
+    let regionOutline = null;
+    let presetMarkers = [];
     let currentMarker = L.marker([21.9497, 89.1833]).addTo(map);
+
+    const REGION_CONFIGS = {
+        sundarbans: {
+            name: "Sundarbans Delta",
+            tag: "Sundarbans",
+            center: [21.9497, 89.1833],
+            zoom: 9,
+            bounds: [[21.2, 87.8], [22.9, 89.9]],
+            sitePrefix: "SUND-LIVE",
+            defaultSiteId: "SUND-LIVE-001",
+            note: "Model trained on 76 Sundarbans field plots (2023). All pointers fall strictly inside GMW 2020 Mangrove Zones.",
+            presets: [
+                { name: "🌿 Core Zone", prefix: "SUND-CORE", lat: 21.9497, lng: 89.1833 },
+                { name: "🌿 West Delta", prefix: "SUND-WEST", lat: 21.8000, lng: 88.6000 },
+                { name: "🌿 East Delta", prefix: "SUND-EAST", lat: 22.1000, lng: 89.5000 },
+                { name: "🌿 North Zone", prefix: "SUND-NORTH", lat: 22.5000, lng: 88.9000 }
+            ]
+        },
+        andaman: {
+            name: "Andaman & Nicobar Islands",
+            tag: "Andaman",
+            center: [11.9966, 92.7402],
+            zoom: 9,
+            bounds: [[11.0, 92.0], [13.6, 93.4]],
+            sitePrefix: "AND-LIVE",
+            defaultSiteId: "AND-LIVE-001",
+            note: "Model trained on Andaman Remote Sensing & Mangrove dataset (2023). All pointers fall strictly inside GMW 2020 Mangrove Zones.",
+            presets: [
+                { name: "🏝️ Havelock Island", prefix: "AND-HVLK", lat: 11.9966, lng: 92.7402 },
+                { name: "🏝️ Baratang Mangroves", prefix: "AND-BRTG", lat: 12.1028, lng: 92.7656 },
+                { name: "🏝️ Mayabunder", prefix: "AND-MAYB", lat: 12.9841, lng: 92.8185 },
+                { name: "🏝️ Port Blair Coast", prefix: "AND-PBLR", lat: 11.6354, lng: 92.7305 }
+            ]
+        }
+    };
+
+    function switchRegion(regionKey) {
+        currentRegion = regionKey;
+        const cfg = REGION_CONFIGS[regionKey] || REGION_CONFIGS.sundarbans;
+
+        // Update map view & marker
+        map.flyTo(cfg.center, cfg.zoom, { duration: 1.5 });
+        updateMarkerAndInputs(cfg.center[0], cfg.center[1]);
+        document.getElementById('est-site-id').value = `${cfg.sitePrefix}-${Math.floor(Math.random()*1000).toString().padStart(3,'0')}`;
+
+        // Update GMW outline
+        if (regionOutline) map.removeLayer(regionOutline);
+        regionOutline = L.rectangle(cfg.bounds, {
+            color: '#10b981', weight: 2, fill: true,
+            fillColor: '#10b981', fillOpacity: 0.08,
+            dashArray: '6 4'
+        }).addTo(map).bindTooltip(`📍 ${cfg.name} (GMW 2020 Protected Mangrove Boundary)`, {permanent: false, direction: 'top'});
+
+        // Remove old preset markers and add new GMW pointers
+        presetMarkers.forEach(m => map.removeLayer(m));
+        presetMarkers = [];
+        
+        cfg.presets.forEach(p => {
+            const m = L.circleMarker([p.lat, p.lng], {
+                radius: 6,
+                color: '#059669',
+                fillColor: '#34d399',
+                fillOpacity: 0.9
+            }).addTo(map).bindTooltip(`<b>${p.name}</b><br><span style="color:#10b981">GMW 2020 Verified</span>`, {permanent: false, direction: 'top'});
+            
+            m.on('click', () => flyToZone(p.prefix, p.lat, p.lng));
+            presetMarkers.push(m);
+        });
+
+        // Update presets UI
+        const container = document.getElementById('presets-container');
+        container.innerHTML = cfg.presets.map(p => `
+            <button onclick="flyToZone('${p.prefix}', ${p.lat}, ${p.lng})" class="text-xs bg-slate-700 hover:bg-emerald-800 text-slate-200 py-2 px-3 rounded border border-slate-600 transition-colors">
+                ${p.name}
+            </button>
+        `).join('');
+
+        // Update note
+        document.getElementById('map-region-note').innerText = cfg.note;
+        validateLiveInputs();
+    }
+
+    // Init default region
+    switchRegion('sundarbans');
 
     function updateMarkerAndInputs(lat, lng) {
         document.getElementById('est-lat').value = lat.toFixed(4);
         document.getElementById('est-lon').value = lng.toFixed(4);
         currentMarker.setLatLng([lat, lng]);
+        validateLiveInputs();
+    }
+
+    function validateLiveInputs() {
+        const lat = parseFloat(document.getElementById('est-lat').value);
+        const lng = parseFloat(document.getElementById('est-lon').value);
+        const cfg = REGION_CONFIGS[currentRegion] || REGION_CONFIGS.sundarbans;
+        
+        const badge = document.getElementById('live-gmw-badge');
+        const text = document.getElementById('live-gmw-text');
+        const tag = document.getElementById('live-gmw-region-tag');
+
+        tag.innerText = cfg.tag;
+
+        const isInside = (lat >= cfg.bounds[0][0] && lat <= cfg.bounds[1][0] &&
+                          lng >= cfg.bounds[0][1] && lng <= cfg.bounds[1][1]);
+
+        if (isInside) {
+            badge.className = "mb-4 text-xs flex items-center justify-between p-2 bg-emerald-950/50 border border-emerald-700 text-emerald-300 rounded-lg";
+            text.innerHTML = `<span>✅ GMW Verified — Inside ${cfg.name} Mangrove Zone</span>`;
+        } else {
+            badge.className = "mb-4 text-xs flex items-center justify-between p-2 bg-yellow-950/50 border border-yellow-700 text-yellow-300 rounded-lg";
+            text.innerHTML = `<span>⚠️ Out of Bounds — Outside ${cfg.name} Training Region</span>`;
+        }
     }
 
     map.on('click', function(e) {
@@ -305,23 +477,29 @@
         const resBox = document.getElementById('estimate-result');
         const errBox = document.getElementById('estimate-error');
         
-        btn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Querying Satellite & Running ML Model...';
+        btn.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>📡 Fetching AWS Sentinel-2 Pixels (~10s)...';
         btn.disabled = true;
         resBox.classList.add('hidden');
         errBox.classList.add('hidden');
-        document.getElementById('btn-mint').disabled = true;
+        const checkBtn = document.getElementById('btn-check-status');
+        if (checkBtn) checkBtn.disabled = true;
 
         const payload = {
             site_id: document.getElementById('est-site-id').value,
             latitude: parseFloat(document.getElementById('est-lat').value),
             longitude: parseFloat(document.getElementById('est-lon').value),
-            area_hectares: parseFloat(document.getElementById('est-area').value)
+            area_hectares: parseFloat(document.getElementById('est-area').value),
+            region: currentRegion
         };
 
         try {
+            const token = localStorage.getItem('auth_token');
             const res = await fetch(`${API_BASE}/api/estimate`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
@@ -372,9 +550,14 @@
                 
                 document.getElementById('res-credits').innerText = Number(data.predicted_credits).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 
-                // Populate Minting form
-                document.getElementById('mint-credits').value = data.predicted_credits;
-                document.getElementById('btn-mint').disabled = false;
+                // Enable Check Status Button
+                currentSiteId = data.site_id;
+                document.getElementById('btn-check-status').disabled = false;
+                document.getElementById('approval-title').innerText = "⏳ Pending Government Approval";
+                document.getElementById('approval-title').className = "font-bold text-yellow-400 text-base";
+                document.getElementById('status-icon').innerText = "⏳";
+                document.getElementById('approval-desc').innerText = `Site ${data.site_id} successfully submitted. Awaiting Ministry Regulator review on the government portal.`;
+                document.getElementById('approval-details').classList.add('hidden');
 
                 // GMW Validation Badge
                 const gmwBadge = document.getElementById('gmw-badge');
@@ -389,12 +572,23 @@
                 }
                 gmwBadge.classList.remove('hidden');
 
-                // Render Credit Score
-                // Render Credit Score
-                renderCreditScore(data.credit_score);
+                // Update Andaman Disclosure Banner Visibility
+                const andamanBanner = document.getElementById('andaman-disclosure-banner');
+                if (andamanBanner) {
+                    if (currentRegion === 'andaman' || (data.region && data.region.includes('Andaman'))) {
+                        andamanBanner.classList.remove('hidden');
+                    } else {
+                        andamanBanner.classList.add('hidden');
+                    }
+                }
 
-                // Show model info note
-                document.getElementById('model-info-note').classList.remove('hidden');
+                // Update Model Info text
+                if (data.model_info) {
+                    const miText = document.getElementById('model-info-text');
+                    if (miText) {
+                        miText.innerText = `${data.model_info.model} · ${data.model_info.region || 'Regional'} · Features: ${data.model_info.features.join(', ')} · ${data.model_info.dataset}`;
+                    }
+                }
 
                 resBox.classList.remove('hidden');
             }
@@ -407,24 +601,44 @@
         }
     }
 
-    function toggleXAIDetail() { /* no-op — XAI removed in Sundarbans model */ }
+    function toggleTechnicalDetails() {
+        const body = document.getElementById('tech-details-body');
+        const arrow = document.getElementById('tech-details-arrow');
+        if (body.classList.contains('hidden')) {
+            body.classList.remove('hidden');
+            arrow.innerText = '▼ Hide details';
+        } else {
+            body.classList.add('hidden');
+            arrow.innerText = '▶ Show details';
+        }
+    }
 
 
     function renderXAI(explanation) { /* no-op — Sundarbans RF model does not return SHAP */ }
 
     function renderCreditScore(cs) {
         if (!cs) return;
-        document.getElementById('score-card').classList.remove('hidden');
-
         const gradeEl = document.getElementById('score-grade');
-        gradeEl.textContent = cs.grade;
-        gradeEl.style.color = cs.color;
+        if (gradeEl) {
+            gradeEl.textContent = cs.grade;
+            gradeEl.style.color = cs.color;
+        }
+        const totalEl = document.getElementById('score-total');
+        if (totalEl) totalEl.textContent = cs.total_score;
+        const marketEl = document.getElementById('score-market');
+        if (marketEl) marketEl.textContent = cs.market_tier;
 
-        document.getElementById('score-total').textContent = cs.total_score + ' / 100';
-
-        const bar = document.getElementById('score-bar');
-        bar.style.width = cs.total_score + '%';
-        bar.style.backgroundColor = cs.color;
+        const breakdown = document.getElementById('score-breakdown');
+        if (breakdown && cs.breakdown) {
+            breakdown.innerHTML = Object.entries(cs.breakdown).map(([k, v]) => `
+                <tr class="border-b border-slate-800/60">
+                    <td class="py-1 capitalize text-slate-300">${k.replace(/_/g, ' ')}</td>
+                    <td class="py-1 text-right text-emerald-400 font-bold">${v}</td>
+                    <td class="py-1 text-right text-slate-500">20</td>
+                </tr>
+            `).join('');
+        }
+    }
 
         document.getElementById('score-market').textContent = cs.market_tier;
 
@@ -452,64 +666,7 @@
         });
     }
 
-    async function verifyAndMint() {
-        const btn = document.getElementById('btn-mint');
-        const resBox = document.getElementById('mint-result');
-        const errBox = document.getElementById('mint-error');
-        
-        btn.innerText = "Signing & Broadcasting TX...";
-        btn.disabled = true;
-        resBox.classList.add('hidden');
-        errBox.classList.add('hidden');
-
-        if (!currentEstimate) return;
-
-        const payload = {
-            site_id: currentEstimate.site_id,
-            latitude: document.getElementById('est-lat').value.toString(),
-            longitude: document.getElementById('est-lon').value.toString(),
-            area_hectares: parseFloat(document.getElementById('est-area').value),
-            predicted_credits: currentEstimate.predicted_credits,
-            owner_address: document.getElementById('mint-owner').value
-        };
-
-        try {
-            const res = await fetch(`${API_BASE}/api/verify-and-mint`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-Api-Key': 'bluecarbon_oracle_2025_secure'
-                },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            
-            if (res.ok) {
-                document.getElementById('mint-tx').innerHTML = `<a href="https://sepolia.etherscan.io/tx/${data.tx_hash}" target="_blank" class="text-blue-400 underline">${data.tx_hash}</a>`;
-                resBox.classList.remove('hidden');
-                
-                // Fly to coordinate and pop-up
-                const lat = parseFloat(payload.latitude);
-                const lon = parseFloat(payload.longitude);
-                map.flyTo([lat, lon], 12);
-                L.popup().setLatLng([lat, lon])
-                 .setContent(`<div class="text-sm font-bold text-slate-800">Minted ${payload.predicted_credits.toLocaleString()} BCO2</div><div class="text-xs text-slate-600">${payload.site_id}</div>`)
-                 .openOn(map);
-
-                loadRegistry(); // auto refresh ledger
-            } else {
-                errBox.innerText = `Transaction Failed: ${data.detail || JSON.stringify(data)}`;
-                errBox.classList.remove('hidden');
-                btn.disabled = false;
-            }
-        } catch (e) {
-            errBox.innerText = `Network Error: ${e.message}`;
-            errBox.classList.remove('hidden');
-            btn.disabled = false;
-        } finally {
-            btn.innerText = "Sign & Broadcast TX";
-        }
-    }
+    function verifyAndMint() { /* no-op — replaced by government approval flow */ }
 
     async function loadRegistry() {
         const tbody = document.getElementById('registry-body');
@@ -540,6 +697,51 @@
             tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-500">Failed to load registry: ${e.message}</td></tr>`;
         }
     }
+
+    function logout() {
+        localStorage.clear();
+        window.location.href = '/login.html';
+    }
+
+    let currentSiteId = null;
+
+    async function checkApprovalStatus() {
+        if (!currentSiteId) return;
+
+        const btn = document.getElementById('btn-check-status');
+        btn.disabled = true;
+        btn.innerHTML = `Checking...`;
+
+        try {
+            const res = await fetch(`/api/estimate/status/${currentSiteId}`);
+            const data = await res.json();
+
+            if (data.status === 'approved') {
+                document.getElementById('status-icon').innerText = '✅';
+                document.getElementById('approval-title').innerText = '✅ Approved — Credits Minted';
+                document.getElementById('approval-title').className = 'font-bold text-emerald-400 text-base';
+                document.getElementById('approval-desc').innerText = `Your project has been officially verified by the Ministry Regulator and $BCO2 credits are issued on Sepolia.`;
+                
+                document.getElementById('status-site-id').innerText = data.site_id;
+                document.getElementById('status-tx-hash').innerHTML = `<a href="https://sepolia.etherscan.io/tx/${data.tx_hash}" target="_blank" class="text-emerald-400 underline">${data.tx_hash}</a>`;
+                document.getElementById('approval-details').classList.remove('hidden');
+
+                loadRegistry();
+            } else {
+                document.getElementById('approval-desc').innerText = `Site ${currentSiteId} is still pending government regulator review on the admin portal.`;
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `<span>🔍</span> <span>Check Approval Status</span>`;
+        }
+    }
+
+    // Set logged-in username in header
+    const username = localStorage.getItem('auth_username') || 'company';
+    const userEl = document.getElementById('user-display-name');
+    if (userEl) userEl.innerText = username;
 
     // Load registry on start
     setTimeout(loadRegistry, 1000);

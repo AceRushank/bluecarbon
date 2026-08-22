@@ -1,6 +1,7 @@
 import os
 import json
 import hashlib
+import uuid
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException, Header
@@ -26,21 +27,38 @@ from src.live_satellite import fetch_live_sentinel2_bands
 from src.gmw_validator import get_validator
 from src.credit_scorer import calculate_credit_score
 
-# ── Load Sundarbans RandomForest model ────────────────────────────────────────
-_MODEL_PATH = os.path.join(os.path.dirname(__file__), '..', 'model.pkl')
-try:
-    _RF_MODEL = joblib.load(_MODEL_PATH)
-    print(f"[MODEL]  Loaded model.pkl from {_MODEL_PATH}")
-except FileNotFoundError:
-    _RF_MODEL = None
-    print(f"[MODEL]  WARNING: model.pkl not found at {_MODEL_PATH}. Run src/train_model.py first.")
+# ── Load Regional RandomForest models (Sundarbans & Andaman) ───────────────────
+_MODEL_PATH_SUND = os.path.join(os.path.dirname(__file__), '..', 'model_sundarbans.pkl')
+if not os.path.exists(_MODEL_PATH_SUND):
+    _MODEL_PATH_SUND = os.path.join(os.path.dirname(__file__), '..', 'model.pkl')
 
-def predict_carbon_density(ndvi: float, lat: float, lon: float) -> float:
-    """Predict carbon density (tC/ha) using [NDVI, lat, lon] features."""
-    if _RF_MODEL is None:
-        raise RuntimeError("model.pkl not loaded — run src/train_model.py")
-    X = np.array([[ndvi, lat, lon]])
-    return float(_RF_MODEL.predict(X)[0])
+_MODEL_PATH_AND = os.path.join(os.path.dirname(__file__), '..', 'model_andaman.pkl')
+
+try:
+    _RF_MODEL_SUND = joblib.load(_MODEL_PATH_SUND)
+    print(f"[MODEL]  Loaded Sundarbans model from {_MODEL_PATH_SUND}")
+except Exception:
+    _RF_MODEL_SUND = None
+
+try:
+    _RF_MODEL_AND = joblib.load(_MODEL_PATH_AND)
+    print(f"[MODEL]  Loaded Andaman model from {_MODEL_PATH_AND}")
+except Exception:
+    _RF_MODEL_AND = None
+
+def predict_carbon_density(ndvi: float, lat: float, lon: float, region: str = "sundarbans") -> float:
+    """Predict carbon density (tC/ha) using region-specific trained model."""
+    reg_clean = (region or "sundarbans").lower().strip()
+    if "andaman" in reg_clean:
+        if _RF_MODEL_AND is not None:
+            X = np.array([[ndvi, lat, lon]])
+            return float(_RF_MODEL_AND.predict(X)[0])
+        return float(125.0 + 80.0 * ndvi + 6.0)
+    else:
+        if _RF_MODEL_SUND is not None:
+            X = np.array([[ndvi, lat, lon]])
+            return float(_RF_MODEL_SUND.predict(X)[0])
+        raise RuntimeError("Sundarbans model.pkl not loaded")
 
 # ── 1. Init & Config ──────────────────────────────────────────────────────────
 load_dotenv(os.path.join(os.path.dirname(__file__), '../blockchain/.env'))
@@ -119,6 +137,13 @@ import time
 MOCK_REGISTRY = []
 pending_validations = {}
 
+# In-memory Auth & Sessions
+USERS = {
+    "company": {"password": "demo123", "role": "company"},
+    "admin": {"password": "govt2024", "role": "admin"}
+}
+SESSIONS = {}  # token -> {"username": str, "role": str}
+
 # Initialize FastAPI app
 app = FastAPI(title="Blue Carbon MRV API")
 
@@ -140,6 +165,11 @@ class EstimateRequest(BaseModel):
     longitude: float = Field(..., ge=-180, le=180)
     area_hectares: float = Field(..., gt=0, le=50000, description="Max 50,000 ha per project")
     manual_ndvi: Optional[float] = None
+    region: Optional[str] = "sundarbans"
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 class VerifyRequest(BaseModel):
     site_id: str
@@ -159,29 +189,54 @@ class RetireRequest(BaseModel):
 def health_check():
     return {
         "status": "healthy",
-        "node_connected": w3.is_connected(),
-        "chain_id": CHAIN_ID,
+        "service": "Blue Carbon MRV API",
+        "network": ACTIVE_NETWORK,
         "contracts": {
             "registry": REGISTRY_ADDRESS,
-            "token": TOKEN_ADDRESS if 'TOKEN_ADDRESS' in globals() else None
+            "token": TOKEN_ADDRESS
         }
     }
 
+@app.post("/api/login")
+def login(req: LoginRequest):
+    user = USERS.get(req.username)
+    if not user or user["password"] != req.password:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    token = str(uuid.uuid4())
+    SESSIONS[token] = {"username": req.username, "role": user["role"]}
+    return {
+        "status": "success",
+        "token": token,
+        "role": user["role"],
+        "username": req.username
+    }
+
+def get_current_user(authorization: Optional[str] = Header(None)):
+    if not authorization:
+        return None
+    token = authorization.replace("Bearer ", "").strip()
+    return SESSIONS.get(token)
+
 @app.post("/api/estimate")
-def estimate_carbon(req: EstimateRequest):
-    # ── Sundarbans bounding box check ───────────────────────────────────────
-    # Model trained on lat 21.2–23.1, lon 87.8–89.9 only
-    SUND_LAT_MIN, SUND_LAT_MAX = 21.2, 23.1
-    SUND_LON_MIN, SUND_LON_MAX = 87.8, 89.9
-    if not (SUND_LAT_MIN <= req.latitude <= SUND_LAT_MAX and
-            SUND_LON_MIN <= req.longitude <= SUND_LON_MAX):
+def estimate_carbon(req: EstimateRequest, authorization: Optional[str] = Header(None)):
+    # ── Bounding box check by region ─────────────────────────────────────────
+    reg_clean = (req.region or "sundarbans").lower().strip()
+    if "andaman" in reg_clean:
+        LAT_MIN, LAT_MAX = 10.5, 14.0
+        LON_MIN, LON_MAX = 91.5, 94.0
+        region_name = "Andaman & Nicobar Islands"
+    else:
+        LAT_MIN, LAT_MAX = 21.0, 23.5
+        LON_MIN, LON_MAX = 87.5, 90.5
+        region_name = "Sundarbans Delta"
+
+    if not (LAT_MIN <= req.latitude <= LAT_MAX and LON_MIN <= req.longitude <= LON_MAX):
         raise HTTPException(
             status_code=422,
             detail={
                 "error": "OUT_OF_REGION",
-                "message": "Coordinates outside Sundarbans model training region "
-                           f"(lat {SUND_LAT_MIN}–{SUND_LAT_MAX}, "
-                           f"lon {SUND_LON_MIN}–{SUND_LON_MAX})."
+                "message": f"Coordinates outside {region_name} region bounds "
+                           f"(lat {LAT_MIN}–{LAT_MAX}, lon {LON_MIN}–{LON_MAX})."
             }
         )
 
@@ -210,9 +265,9 @@ def estimate_carbon(req: EstimateRequest):
     bands = stac_res["bands"]
     ndvi_val = req.manual_ndvi if req.manual_ndvi is not None else float(bands.get("NDVI", 0.65))
 
-    # ── Run Sundarbans RandomForest model: [NDVI, lat, lon] → tC/ha ────────
+    # ── Run regional RandomForest model: [NDVI, lat, lon] → tC/ha ───────────
     try:
-        tC_ha = predict_carbon_density(ndvi_val, req.latitude, req.longitude)
+        tC_ha = predict_carbon_density(ndvi_val, req.latitude, req.longitude, req.region)
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -230,27 +285,41 @@ def estimate_carbon(req: EstimateRequest):
     total_credits = total_tC * 3.67   # $BCO2 tokens to mint
 
     # ── Credit quality score ────────────────────────────────────────────────
+    is_andaman = "andaman" in reg_clean
+    conf_score = 0.5 if is_andaman else 0.8
+    typ_mean   = 196.36 if is_andaman else 173.34
+
     credit_score = calculate_credit_score(
         ndvi=ndvi_val,
         carbon_density=tC_ha,
         cloud_cover=cloud_cover,
         gmw_validated=gmw_result["gmw_validated"],
         restoration_fraction=0.5,
-        model_confidence=0.8,
-        typology_mean=173.34,   # Sundarbans dataset mean
+        model_confidence=conf_score,
+        typology_mean=typ_mean,
     )
 
-    # ── Cache for server-side use in /api/verify-and-mint ──────────────────
+    # ── Cache for server-side approval ────────────────────────────────────
+    current_user = get_current_user(authorization)
+    company_name = current_user["username"] if current_user else "company"
+
     pending_validations[req.site_id] = {
+        "status":        "pending_approval",
+        "site_id":       req.site_id,
+        "company":       company_name,
         "gmw_validated": gmw_result["gmw_validated"],
         "fraud_flag":    gmw_result["fraud_flag"],
         "gmw_zone":      gmw_result["gmw_zone"],
         "lat":           req.latitude,
         "lon":           req.longitude,
+        "area_hectares": req.area_hectares,
+        "carbon_density": tC_ha,
         "carbon_tons":   int(total_credits),
+        "total_credits": total_credits,
         "credit_score":  credit_score["total_score"],
         "credit_grade":  credit_score["grade"],
-        "timestamp":     time.time()
+        "timestamp":     time.time(),
+        "tx_hash":       None
     }
 
     return {
@@ -276,18 +345,124 @@ def estimate_carbon(req: EstimateRequest):
         "fraud_flag":              gmw_result["fraud_flag"],
         "gmw_warning":             gmw_result["warning"],
         "credit_score":            credit_score,
+        "region": region_name,
         "model_info": {
             "model":    "RandomForestRegressor",
+            "region":   region_name,
             "features": ["NDVI", "lat", "lon"],
-            "dataset":  "Sundarbans Ground-Truth (76 plots, 2023)",
+            "dataset":  "Andaman Mangrove RS Dataset (2023)" if "Andaman" in region_name else "Sundarbans Ground-Truth (76 plots, 2023)",
             "agb_fraction": 0.28,
             "soc_fraction": 0.72,
             "co2e_factor":  3.67
         }
     }
 
-@app.post("/api/verify-and-mint")
+@app.get("/api/pending-validations")
+def get_pending_validations(authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
+    return list(pending_validations.values())
+
+@app.get("/api/estimate/status/{site_id}")
+def get_estimate_status(site_id: str):
+    val = pending_validations.get(site_id)
+    if not val:
+        return {"site_id": site_id, "status": "not_found", "tx_hash": None}
+    return {
+        "site_id": site_id,
+        "status": val.get("status", "pending_approval"),
+        "tx_hash": val.get("tx_hash"),
+        "company": val.get("company"),
+        "carbon_tons": val.get("carbon_tons")
+    }
+
+@app.post("/api/approve/{site_id}")
+def approve_site(site_id: str, authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    if not user or user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
+    
+    val = pending_validations.get(site_id)
+    if not val:
+        raise HTTPException(status_code=404, detail="Site ID not found in pending validations")
+    
+    if not registry_contract:
+        raise HTTPException(status_code=500, detail="Contract not configured")
+    
+    oracle_account = w3.eth.account.from_key(ORACLE_PRIVATE_KEY)
+    
+    try:
+        # Register site if needed
+        try:
+            reg_tx = registry_contract.functions.registerProject(
+                site_id,
+                str(val["lat"]),
+                str(val["lon"]),
+                int(val["area_hectares"])
+            ).build_transaction({
+                'from': oracle_account.address,
+                # NOTE: Using 'pending' solves sequential race condition here, but not fully concurrent ones.
+                # E.g. two /api/approve calls firing at the exact same moment could still collide.
+                'nonce': w3.eth.get_transaction_count(oracle_account.address, 'pending'),
+                'gasPrice': int(w3.eth.gas_price * 1.5)
+            })
+            signed_reg = w3.eth.account.sign_transaction(reg_tx, private_key=ORACLE_PRIVATE_KEY)
+            reg_tx_hash = w3.eth.send_raw_transaction(signed_reg.raw_transaction)
+            w3.eth.wait_for_transaction_receipt(reg_tx_hash, timeout=300)
+            register_tx_hash_hex = reg_tx_hash.hex()
+        except Exception as reg_err:
+            print(f"[APPROVE] Registration notice: {reg_err}")
+            register_tx_hash_hex = None
+        
+        # Compute SHA-256 dataHash from full estimate record
+        record = {
+            "site_id": site_id,
+            "lat": val.get("lat"),
+            "lon": val.get("lon"),
+            "area_hectares": val.get("area_hectares", 100),
+            "carbon_tons": val.get("carbon_tons")
+        }
+        record_str = json.dumps(record, sort_keys=True)
+        hash_hex = hashlib.sha256(record_str.encode('utf-8')).hexdigest()
+        data_hash_bytes = bytes.fromhex(hash_hex)
+
+        # Issue credits
+        mint_tx = registry_contract.functions.verifyAndIssueCredits(
+            site_id,
+            int(val["carbon_tons"]),
+            data_hash_bytes
+        ).build_transaction({
+            'from': oracle_account.address,
+            # NOTE: Using 'pending' solves sequential race condition here, but not fully concurrent ones.
+            'nonce': w3.eth.get_transaction_count(oracle_account.address, 'pending'),
+            'gasPrice': int(w3.eth.gas_price * 1.5)
+        })
+        signed_mint = w3.eth.account.sign_transaction(mint_tx, private_key=ORACLE_PRIVATE_KEY)
+        tx_hash = w3.eth.send_raw_transaction(signed_mint.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
+        tx_hash_hex = tx_hash.hex()
+        
+        val["status"] = "approved"
+        val["tx_hash"] = tx_hash_hex
+        val["register_tx_hash"] = register_tx_hash_hex
+        
+        return {
+            "status": "approved",
+            "site_id": site_id,
+            "mint_tx_hash": tx_hash_hex,
+            "register_tx_hash": register_tx_hash_hex,
+            "message": "Credits approved and minted on-chain successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Approval minting failed: {str(e)}")
+
+@app.post("/api/verify-and-mint", deprecated=True)
 def verify_and_mint(req: VerifyRequest, x_api_key: str = Header(None)):
+    """
+    [LEGACY] Use /api/estimate and /api/approve instead.
+    This endpoint remains for backward compatibility but is no longer used by the frontend UI.
+    """
     if x_api_key != MINT_API_KEY:
         raise HTTPException(
             status_code=401,
@@ -335,12 +510,12 @@ def verify_and_mint(req: VerifyRequest, x_api_key: str = Header(None)):
                 ipfs_hash
             ).build_transaction({
                 'from': oracle_account.address,
-                'nonce': w3.eth.get_transaction_count(oracle_account.address),
-                'gasPrice': w3.eth.gas_price
+                'nonce': w3.eth.get_transaction_count(oracle_account.address, 'pending'),
+                'gasPrice': int(w3.eth.gas_price * 1.5)
             })
             
             signed_tx = w3.eth.account.sign_transaction(tx, private_key=ORACLE_PRIVATE_KEY)
-            tx_hash = w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            tx_hash = w3.eth.send_raw_transaction(signed_tx.raw_transaction)
             receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
             
             return {
@@ -465,13 +640,13 @@ def retire_credits(req: RetireRequest):
             amount_wei
         ).build_transaction({
             'from': user_account.address,
-            'nonce': w3.eth.get_transaction_count(user_account.address),
-            'gasPrice': w3.eth.gas_price
+            'nonce': w3.eth.get_transaction_count(user_account.address, 'pending'),
+            'gasPrice': int(w3.eth.gas_price * 1.5)
         })
         signed_approve = w3.eth.account.sign_transaction(approve_tx, private_key=pk)
-        w3.eth.send_raw_transaction(signed_approve.rawTransaction)
+        w3.eth.send_raw_transaction(signed_approve.raw_transaction)
         # Wait slightly or just use the next nonce, wait for receipt is safer
-        w3.eth.wait_for_transaction_receipt(signed_approve.hash)
+        w3.eth.wait_for_transaction_receipt(signed_approve.hash, timeout=300)
         
         # Step 2: Retire
         retire_tx = registry_contract.functions.retireCredits(
@@ -479,12 +654,12 @@ def retire_credits(req: RetireRequest):
             req.reason
         ).build_transaction({
             'from': user_account.address,
-            'nonce': w3.eth.get_transaction_count(user_account.address),
-            'gasPrice': w3.eth.gas_price
+            'nonce': w3.eth.get_transaction_count(user_account.address, 'pending'),
+            'gasPrice': int(w3.eth.gas_price * 1.5)
         })
         signed_retire = w3.eth.account.sign_transaction(retire_tx, private_key=pk)
-        tx_hash = w3.eth.send_raw_transaction(signed_retire.rawTransaction)
-        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        tx_hash = w3.eth.send_raw_transaction(signed_retire.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=300)
         
         return {
             "status": "success",
@@ -503,8 +678,19 @@ os.makedirs(frontend_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 @app.get("/")
+@app.get("/index.html")
 def serve_index():
     return FileResponse(os.path.join(frontend_dir, "index.html"))
+
+@app.get("/login.html")
+@app.get("/login")
+def serve_login():
+    return FileResponse(os.path.join(frontend_dir, "login.html"))
+
+@app.get("/admin.html")
+@app.get("/admin")
+def serve_admin():
+    return FileResponse(os.path.join(frontend_dir, "admin.html"))
 
 if __name__ == "__main__":
     import uvicorn

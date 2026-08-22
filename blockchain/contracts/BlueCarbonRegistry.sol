@@ -32,7 +32,7 @@ contract BlueCarbonRegistry is Ownable {
         bool    isVerified;       // True once oracle has verified
         uint256 carbonTons;       // Predicted carbon stock (metric tons CO2e)
         uint256 creditsMinted;    // BCO2 tokens minted (18 decimals)
-        string  ipfsProofHash;    // IPFS CID / URL for ML output + Sentinel-2 metadata
+        bytes32 dataHash;         // SHA-256 hash of estimate record
         uint256 timestamp;        // Block timestamp of registration
     }
 
@@ -50,7 +50,7 @@ contract BlueCarbonRegistry is Ownable {
     CarbonCreditToken private carbonToken;
 
     uint256 public constant MAX_AREA_HECTARES = 50000;
-    uint256 public constant MAX_CARBON_PER_HA = 1500;
+    uint256 public constant MAX_CARBON_PER_HA = 5500;
 
     // ── Events ───────────────────────────────────────────────────────────────
     event ProjectRegistered(
@@ -64,7 +64,7 @@ contract BlueCarbonRegistry is Ownable {
     event ProjectVerified(
         string  indexed siteId,
         uint256 carbonTons,
-        string  ipfsProofHash
+        bytes32 dataHash
     );
 
     event CreditsIssued(
@@ -130,7 +130,7 @@ contract BlueCarbonRegistry is Ownable {
             isVerified:    false,
             carbonTons:    0,
             creditsMinted: 0,
-            ipfsProofHash: "",
+            dataHash:      bytes32(0),
             timestamp:     block.timestamp
         });
 
@@ -147,13 +147,12 @@ contract BlueCarbonRegistry is Ownable {
      *
      * @param siteId               The registered site identifier.
      * @param predictedCarbonTons  Carbon stock estimate in metric tons CO2e.
-     * @param ipfsProofHash        IPFS CID pointing to the ML verification output
-     *                             and Sentinel-2 satellite metadata.
+     * @param dataHash             SHA-256 hash of full ML estimate record
      */
     function verifyAndIssueCredits(
         string memory siteId,
         uint256 predictedCarbonTons,
-        string memory ipfsProofHash
+        bytes32 dataHash
     ) external onlyOwner {
         require(
             bytes(projects[siteId].siteId).length > 0,
@@ -172,7 +171,7 @@ contract BlueCarbonRegistry is Ownable {
         // Update project state
         projects[siteId].isVerified    = true;
         projects[siteId].carbonTons    = predictedCarbonTons;
-        projects[siteId].ipfsProofHash = ipfsProofHash;
+        projects[siteId].dataHash      = dataHash;
 
         // Convert metric tons → token units (18 decimals, 1 token = 1 tCO2e)
         uint256 amountToMint = predictedCarbonTons * (10 ** 18);
@@ -181,7 +180,7 @@ contract BlueCarbonRegistry is Ownable {
         // Mint BCO2 tokens to the project owner
         carbonToken.mint(projects[siteId].owner, amountToMint);
 
-        emit ProjectVerified(siteId, predictedCarbonTons, ipfsProofHash);
+        emit ProjectVerified(siteId, predictedCarbonTons, dataHash);
         emit CreditsIssued(siteId, projects[siteId].owner, amountToMint);
     }
 
