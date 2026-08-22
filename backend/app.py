@@ -294,6 +294,7 @@ def estimate_carbon(req: EstimateRequest, authorization: Optional[str] = Header(
         carbon_density=tC_ha,
         cloud_cover=cloud_cover,
         gmw_validated=gmw_result["gmw_validated"],
+        is_ground_truth=not is_andaman,
         restoration_fraction=0.5,
         model_confidence=conf_score,
         typology_mean=typ_mean,
